@@ -16,11 +16,13 @@ export const useChatStore = defineStore('chat', () => {
 
   const isTyping = ref(false)
   const isStreaming = ref(false)
-  const currentModel = ref(APP_CONFIG.DEFAULT_MODEL)
+  const currentModel = ref<string>(APP_CONFIG.DEFAULT_MODEL)
   const error = ref<string | undefined>(undefined)
   const abortController = ref<AbortController | null>(null)
   const savedContexts = ref<ContextItem[]>([])
   const selectedContextIds = ref<string[]>([])
+  const availableModels = ref<string[]>([])
+  const isLoadingModels = ref(false)
 
   // Getters
   const chatState = computed<ChatState>(() => ({
@@ -95,7 +97,7 @@ export const useChatStore = defineStore('chat', () => {
 
   // Context management
   const saveContext = (context: ContextItem) => {
-    const existingIndex = savedContexts.value.findIndex(c => c.id === context.id)
+    const existingIndex = savedContexts.value.findIndex((c) => c.id === context.id)
     if (existingIndex >= 0) {
       savedContexts.value[existingIndex] = context
     } else {
@@ -105,7 +107,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const deleteContext = (id: string) => {
-    const index = savedContexts.value.findIndex(c => c.id === id)
+    const index = savedContexts.value.findIndex((c) => c.id === id)
     if (index >= -1) {
       savedContexts.value.splice(index, 1)
       // Remove from selected contexts if it was selected
@@ -127,7 +129,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const getSelectedContexts = () => {
-    return savedContexts.value.filter(c => selectedContextIds.value.includes(c.id))
+    return savedContexts.value.filter((c) => selectedContextIds.value.includes(c.id))
   }
 
   const clearSelectedContexts = () => {
@@ -159,7 +161,40 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const setCurrentModel = (model: string) => {
-    currentModel.value = model as any
+    currentModel.value = model
+    // Save to localStorage for persistence
+    try {
+      localStorage.setItem('yokai-chat-current-model', model)
+    } catch (error) {
+      console.warn('Failed to save current model to localStorage:', error)
+    }
+  }
+
+  const loadCurrentModelFromStorage = () => {
+    try {
+      const stored = localStorage.getItem('yokai-chat-current-model')
+      if (stored) {
+        currentModel.value = stored
+      }
+    } catch (error) {
+      console.warn('Failed to load current model from localStorage:', error)
+    }
+  }
+
+  const loadAvailableModels = async () => {
+    if (isLoadingModels.value) return
+    
+    isLoadingModels.value = true
+    try {
+      const { lmStudioService } = await import('@/services/lmstudio')
+      const models = await lmStudioService.getAvailableModels()
+      availableModels.value = models
+    } catch (error) {
+      console.error('Failed to load available models:', error)
+      availableModels.value = []
+    } finally {
+      isLoadingModels.value = false
+    }
   }
 
   const clearError = () => {
@@ -198,6 +233,8 @@ export const useChatStore = defineStore('chat', () => {
     error,
     savedContexts,
     selectedContextIds,
+    availableModels,
+    isLoadingModels,
 
     // Getters
     chatState,
@@ -216,6 +253,10 @@ export const useChatStore = defineStore('chat', () => {
     setError,
     setCurrentModel,
     clearError,
+
+    // Model management
+    loadCurrentModelFromStorage,
+    loadAvailableModels,
 
     // Context management
     saveContext,

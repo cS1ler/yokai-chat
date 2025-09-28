@@ -52,3 +52,46 @@ export interface OllamaRequest {
   prompt: string
   stream: boolean
 }
+
+// LM Studio specific types
+export interface LMStudioMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+export interface LMStudioRequest {
+  model: string
+  messages: LMStudioMessage[]
+  stream: boolean
+  temperature?: number
+  max_tokens?: number
+}
+
+export interface LMStudioResponse {
+  id?: string
+  object?: string
+  created?: number
+  model?: string
+  choices?: Array<{
+    index: number
+    delta: {
+      content?: string
+      role?: string
+    }
+    finish_reason?: string
+  }>
+  error?: {
+    message: string
+    type: string
+  }
+}
+
+export interface LMStudioModel {
+  id: string
+  object: string
+  created: number
+  owned_by: string
+  permission: any[]
+  root: string
+  parent?: string
+}

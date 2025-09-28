@@ -1,7 +1,7 @@
-import type { OllamaRequest, OllamaResponse } from '@/types/chat'
+import type { LMStudioRequest, LMStudioResponse, LMStudioModel } from '@/types/chat'
 import { APP_CONFIG, ERROR_MESSAGES } from '@/constants'
 
-export class OllamaService {
+export class LMStudioService {
   private baseUrl: string
 
   constructor(baseUrl: string = '') {
@@ -16,13 +16,20 @@ export class OllamaService {
     abortController?: AbortController,
   ): Promise<void> {
     try {
-      const request: OllamaRequest = {
+      const request: LMStudioRequest = {
         model,
-        prompt: message,
+        messages: [
+          {
+            role: 'user',
+            content: message,
+          },
+        ],
         stream: true,
+        temperature: 0.7,
+        max_tokens: 2048,
       }
 
-      const response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.GENERATE}`, {
+      const response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.CHAT_COMPLETIONS}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
@@ -55,14 +62,14 @@ export class OllamaService {
 
   async getAvailableModels(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.TAGS}`)
+      const response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`)
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: Failed to fetch models`)
       }
 
-      const data = await response.json()
-      return data.models?.map((model: { name: string }) => model.name) || []
+      const data: { data: LMStudioModel[] } = await response.json()
+      return data.data?.map((model: LMStudioModel) => model.id) || []
     } catch (error) {
       console.error('Failed to fetch models:', error)
       return []
@@ -78,80 +85,19 @@ export class OllamaService {
     }
   }
 
-  async pullModel(
-    modelName: string,
-    onProgress?: (progress: { status: string; completed?: number; total?: number }) => void,
-    abortController?: AbortController,
-  ): Promise<void> {
+  async getModelInfo(modelId: string): Promise<LMStudioModel | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/pull`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: modelName, stream: true }),
-        signal: abortController?.signal,
-      })
+      const response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`)
 
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
+        throw new Error(`HTTP ${response.status}: Failed to fetch model info`)
       }
 
-      if (!response.body) {
-        throw new Error('Response body is null')
-      }
-
-      await this.processPullStream(response.body, onProgress, abortController)
+      const data: { data: LMStudioModel[] } = await response.json()
+      return data.data?.find((model: LMStudioModel) => model.id === modelId) || null
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        return
-      }
-      throw error
-    }
-  }
-
-  private async processPullStream(
-    stream: ReadableStream<Uint8Array>,
-    onProgress?: (progress: { status: string; completed?: number; total?: number }) => void,
-    abortController?: AbortController,
-  ): Promise<void> {
-    const reader = stream.getReader()
-    const decoder = new TextDecoder()
-
-    try {
-      while (true) {
-        if (abortController?.signal.aborted) {
-          break
-        }
-
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n').filter((line) => line.trim() !== '')
-
-        for (const line of lines) {
-          try {
-            const data = JSON.parse(line)
-
-            if (data.error) {
-              throw new Error(data.error)
-            }
-
-            if (onProgress) {
-              onProgress({
-                status: data.status || 'Downloading...',
-                completed: data.completed,
-                total: data.total,
-              })
-            }
-          } catch {
-            // Ignore malformed JSON lines
-            console.debug('Ignoring malformed JSON:', line)
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock()
+      console.error('Failed to fetch model info:', error)
+      return null
     }
   }
 
@@ -179,17 +125,25 @@ export class OllamaService {
 
         for (const line of lines) {
           try {
-            const data: OllamaResponse = JSON.parse(line)
-
-            if (data.error) {
-              if (onError) {
-                onError(data.error)
+            // Handle Server-Sent Events format
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6)
+              if (data === '[DONE]') {
+                return
               }
-              return
-            }
 
-            if (data.response) {
-              onChunk(data.response)
+              const parsed: LMStudioResponse = JSON.parse(data)
+              
+              if (parsed.error) {
+                if (onError) {
+                  onError(parsed.error.message || 'Unknown error')
+                }
+                return
+              }
+
+              if (parsed.choices?.[0]?.delta?.content) {
+                onChunk(parsed.choices[0].delta.content)
+              }
             }
           } catch {
             // Ignore malformed JSON lines (keepalive, etc.)
@@ -205,7 +159,7 @@ export class OllamaService {
   private handleError(error: unknown): string {
     if (error instanceof Error) {
       if (error.message.includes('Failed to fetch')) {
-        return ERROR_MESSAGES.OLLAMA_CONNECTION
+        return ERROR_MESSAGES.LMSTUDIO_CONNECTION
       }
       if (error.message.includes('NetworkError')) {
         return ERROR_MESSAGES.NETWORK_ERROR
@@ -216,13 +170,13 @@ export class OllamaService {
   }
 }
 
-// Export singleton instance with direct connection to Ollama
-export const ollamaService = new OllamaService(APP_CONFIG.OLLAMA_BASE_URL)
+// Export singleton instance with direct connection to LM Studio
+export const lmStudioService = new LMStudioService(APP_CONFIG.LMSTUDIO_BASE_URL)
 
 // Export legacy function for backward compatibility
 export async function sendMessageStream(
   message: string,
   onChunk: (chunk: string) => void,
 ): Promise<void> {
-  return ollamaService.sendMessageStream(message, APP_CONFIG.DEFAULT_MODEL, onChunk)
+  return lmStudioService.sendMessageStream(message, APP_CONFIG.DEFAULT_MODEL, onChunk)
 }

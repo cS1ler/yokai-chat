@@ -73,7 +73,7 @@ defineExpose({
               <input
                 type="checkbox"
                 :checked="isSelected(context.id)"
-                @click.stop
+                @click.stop="toggleSelection(context.id)"
                 class="checkbox"
               />
               <span class="badge badge-primary">{{ context.type }}</span>
@@ -235,8 +235,24 @@ defineExpose({
   flex: 1;
 }
 .checkbox {
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--accent);
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--neon-green);
+  cursor: pointer;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+}
+
+.checkbox:hover {
+  border-color: var(--neon-green);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.2);
+}
+
+.checkbox:checked {
+  background: var(--neon-green);
+  border-color: var(--neon-green);
+  box-shadow: 0 0 12px var(--neon-green-glow);
 }
 </style>

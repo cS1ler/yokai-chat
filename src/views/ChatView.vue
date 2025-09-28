@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import MessageList from '@/components/MessageList.vue'
 import MessageInput from '@/components/MessageInput.vue'
+import ModelSelector from '@/components/ModelSelector.vue'
 import { useChatStore } from '@/stores/chat'
-import { ollamaService } from '@/services/ollama'
+import { lmStudioService } from '@/services/lmstudio'
 import { useMarkdown } from '@/composables/useMarkdown'
 import { ERROR_MESSAGES } from '@/constants'
 import type { ContextItem } from '@/types/chat'
@@ -31,7 +32,7 @@ async function handleSend(content: string, context?: ContextItem[]) {
     context && context.length > 0 ? formatMessageWithContext(content, context) : content
 
   try {
-    await ollamaService.sendMessageStream(
+    await lmStudioService.sendMessageStream(
       fullMessage,
       chatStore.currentModel,
       (chunk) => {
@@ -48,7 +49,7 @@ async function handleSend(content: string, context?: ContextItem[]) {
     // Don't show error if it was aborted
     if (error instanceof Error && error.name !== 'AbortError') {
       chatStore.updateMessage(assistantMessage.id, {
-        content: ERROR_MESSAGES.OLLAMA_CONNECTION,
+        content: ERROR_MESSAGES.LMSTUDIO_CONNECTION,
       })
       chatStore.setError(error.message)
     }
@@ -63,18 +64,18 @@ function handleStop() {
   chatStore.stopStreaming()
 }
 
-async function testOllama() {
+async function testLMStudio() {
   try {
-    const isConnected = await ollamaService.testConnection()
+    const isConnected = await lmStudioService.testConnection()
     if (isConnected) {
-      const models = await ollamaService.getAvailableModels()
-      alert(`Connected to Ollama! Available models: ${models.join(', ') || 'none'}`)
+      const models = await lmStudioService.getAvailableModels()
+      alert(`Connected to LM Studio! Available models: ${models.join(', ') || 'none'}`)
     } else {
-      alert('⚠️ Could not reach Ollama')
+      alert('⚠️ Could not reach LM Studio')
     }
   } catch (error) {
-    console.error('Ollama test failed', error)
-    alert('⚠️ Could not reach Ollama')
+    console.error('LM Studio test failed', error)
+    alert('⚠️ Could not reach LM Studio')
   }
 }
 </script>
@@ -84,7 +85,11 @@ async function testOllama() {
     <header class="modern-header">
       <div class="header-content">
         <h1 class="app-title">Yokai Chat</h1>
-        <button @click="testOllama" class="btn btn-primary modern-btn">Test Ollama</button>
+        <div class="header-controls">
+          <ModelSelector />
+          <router-link to="/models" class="btn btn-secondary modern-btn">📦 Models</router-link>
+          <button @click="testLMStudio" class="btn btn-primary modern-btn">Test LM Studio</button>
+        </div>
       </div>
     </header>
     <div class="chat-container">
@@ -196,6 +201,12 @@ async function testOllama() {
   justify-content: space-between;
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .app-title {
