@@ -155,19 +155,20 @@ const downloadModel = async (modelName: string) => {
     // LM Studio doesn't have a direct API for downloading models
     // Instead, we'll show instructions to the user
     pullProgress.value.status = 'Please download this model in LM Studio'
-    
+
     // Show instructions
-    alert(`To download ${modelName}:\n\n1. Open LM Studio\n2. Go to the "Models" tab\n3. Search for "${modelName}"\n4. Click "Download" next to the model\n5. Once downloaded, refresh this page`)
-    
+    alert(
+      `To download ${modelName}:\n\n1. Open LM Studio\n2. Go to the "Models" tab\n3. Search for "${modelName}"\n4. Click "Download" next to the model\n5. Once downloaded, refresh this page`,
+    )
+
     pullProgress.value.status = 'Model download instructions shown'
     isPulling.value = false
     selectedModel.value = ''
-    
+
     // Refresh installed models after a delay
     setTimeout(async () => {
       await loadModels()
     }, 2000)
-    
   } catch (error) {
     console.error('Failed to show download instructions:', error)
     pullProgress.value.status = 'Failed to show instructions'

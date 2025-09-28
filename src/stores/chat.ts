@@ -183,7 +183,7 @@ export const useChatStore = defineStore('chat', () => {
 
   const loadAvailableModels = async () => {
     if (isLoadingModels.value) return
-    
+
     isLoadingModels.value = true
     try {
       const { lmStudioService } = await import('@/services/lmstudio')

@@ -3,6 +3,7 @@ import { APP_CONFIG, ERROR_MESSAGES } from '@/constants'
 
 export class LMStudioService {
   private baseUrl: string
+  private fallbackUrl: string = 'http://localhost:1234/v1'
 
   constructor(baseUrl: string = '') {
     this.baseUrl = baseUrl
@@ -29,12 +30,11 @@ export class LMStudioService {
         max_tokens: 2048,
       }
 
-      const response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.CHAT_COMPLETIONS}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-        signal: abortController?.signal,
-      })
+      const response = await this.makeRequest(
+        `${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.CHAT_COMPLETIONS}`,
+        request,
+        abortController
+      )
 
       if (!response.ok) {
         const errorText = await response.text()
@@ -60,9 +60,51 @@ export class LMStudioService {
     }
   }
 
+  private async makeRequest(url: string, request: LMStudioRequest, abortController?: AbortController): Promise<Response> {
+    try {
+      return await fetch(url, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify(request),
+        signal: abortController?.signal,
+      })
+    } catch (error) {
+      // If proxy fails, try direct connection
+      if (url.startsWith('/api/lmstudio')) {
+        console.warn('Proxy failed, trying direct connection to LM Studio')
+        const directUrl = url.replace('/api/lmstudio', this.fallbackUrl)
+        return await fetch(directUrl, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream',
+          },
+          body: JSON.stringify(request),
+          signal: abortController?.signal,
+        })
+      }
+      throw error
+    }
+  }
+
   async getAvailableModels(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`)
+      let response: Response
+      
+      try {
+        response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`)
+      } catch (error) {
+        // If proxy fails, try direct connection
+        if (this.baseUrl.startsWith('/api/lmstudio')) {
+          console.warn('Proxy failed for models, trying direct connection to LM Studio')
+          response = await fetch(`${this.fallbackUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`)
+        } else {
+          throw error
+        }
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: Failed to fetch models`)
@@ -133,7 +175,7 @@ export class LMStudioService {
               }
 
               const parsed: LMStudioResponse = JSON.parse(data)
-              
+
               if (parsed.error) {
                 if (onError) {
                   onError(parsed.error.message || 'Unknown error')
