@@ -80,18 +80,18 @@ async function testOllama() {
 </script>
 
 <template>
-  <div class="flex justify-center h-screen bg-primary">
-    <div class="container-sm flex flex-col flex-1 border-l border-r border-border">
-      <header
-        class="sticky top-0 bg-primary p-md border-b border-border text-center font-semibold text-lg"
-      >
-        <div class="flex items-center justify-between">
-          <h1 class="text-accent">Yokai Chat</h1>
-          <button @click="testOllama" class="btn btn-secondary text-sm">Test Ollama</button>
-        </div>
-      </header>
-      <MessageList :messages="chatStore.messages" :is-typing="chatStore.isTyping" />
-      <MessageInput :is-streaming="chatStore.isStreaming" @send="handleSend" @stop="handleStop" />
+  <div class="flex flex-col h-screen bg-primary modern-layout">
+    <header class="modern-header">
+      <div class="header-content">
+        <h1 class="app-title">Yokai Chat</h1>
+        <button @click="testOllama" class="btn btn-primary modern-btn">Test Ollama</button>
+      </div>
+    </header>
+    <div class="chat-container">
+      <div class="chat-body">
+        <MessageList :messages="chatStore.messages" :is-typing="chatStore.isTyping" />
+        <MessageInput :is-streaming="chatStore.isStreaming" @send="handleSend" @stop="handleStop" />
+      </div>
     </div>
   </div>
 </template>
@@ -142,5 +142,93 @@ async function testOllama() {
 }
 .text-sm {
   font-size: 0.9rem;
+}
+.w-full {
+  width: 100%;
+}
+.max-w-7xl {
+  max-width: 80rem;
+}
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.px-2 {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+.header-compact {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+.w-20 {
+  width: 5rem;
+}
+.flex-1 {
+  flex: 1;
+}
+.justify-end {
+  justify-content: flex-end;
+}
+
+/* Modern Layout Styles */
+.modern-layout {
+  background: linear-gradient(135deg, var(--bg-primary) 0%, #0f0f0f 100%);
+}
+
+.modern-header {
+  background: var(--color-header);
+  border-bottom: 1px solid var(--color-border);
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.app-title {
+  color: var(--neon-green);
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-shadow: 0 0 10px var(--neon-green-glow);
+  margin: 0;
+}
+
+.modern-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  border-radius: 8px;
+}
+
+.chat-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.chat-body {
+  width: 100%;
+  max-width: 1200px;
+  background: var(--color-chat-body);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 </style>

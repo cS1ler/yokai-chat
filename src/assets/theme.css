@@ -1,26 +1,31 @@
-/* Monokai Dark Theme */
+/* Modern Dark Theme with Neon Green */
 :root {
-  /* Monokai Colors */
-  --bg-primary: #272822;
-  --bg-secondary: #3e3d32;
-  --bg-tertiary: #49483e;
-  --text-primary: #f8f8f2;
-  --text-secondary: #75715e;
-  --text-muted: #a59f85;
+  /* Modern Dark Background Colors */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #2a2a2a;
+  --bg-card: #1e1e1e;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --text-muted: #808080;
 
-  /* Accent Colors */
-  --accent-blue: #66d9ef;
-  --accent-green: #a6e22e;
-  --accent-orange: #fd971f;
-  --accent-purple: #ae81ff;
-  --accent-red: #f92672;
-  --accent-yellow: #e6db74;
+  /* Neon Green Accent Colors */
+  --neon-green: #00ff41;
+  --neon-green-glow: #00ff4150;
+  --neon-green-dark: #00cc33;
+  --accent-blue: #00d4ff;
+  --accent-purple: #8b5cf6;
+  --accent-orange: #ff6b35;
+  --accent-red: #ff4757;
 
   /* Semantic Colors */
-  --color-user: var(--accent-blue);
-  --color-assistant: var(--bg-secondary);
-  --color-border: var(--bg-tertiary);
-  --color-accent: var(--accent-green);
+  --color-user: var(--neon-green);
+  --color-assistant: var(--bg-card);
+  --color-border: #333333;
+  --color-accent: var(--neon-green);
+  --color-chat-body: #111111;
+  --color-header: #0d0d0d;
+  --color-input: #1a1a1a;
 
   /* Spacing */
   --space-xs: 0.25rem;
@@ -62,7 +67,7 @@ body {
 }
 
 .container-sm {
-  max-width: 800px;
+  max-width: 1400px;
 }
 
 .flex {
@@ -104,51 +109,72 @@ body {
 }
 
 .btn-primary {
-  background: var(--color-accent);
+  background: var(--neon-green);
   color: var(--bg-primary);
+  font-weight: 600;
+  border: 1px solid var(--neon-green);
+  box-shadow: 0 0 10px var(--neon-green-glow);
+  transition: all 0.3s ease;
 }
 
 .btn-primary:hover {
-  background: var(--accent-green);
-  opacity: 0.9;
+  background: var(--neon-green-dark);
+  box-shadow: 0 0 20px var(--neon-green-glow);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
-  background: var(--bg-tertiary);
+  background: var(--bg-card);
   color: var(--text-primary);
+  border: 1px solid var(--color-border);
+  transition: all 0.3s ease;
 }
 
 .btn-secondary:hover {
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
+  border-color: var(--neon-green);
+  box-shadow: 0 0 10px var(--neon-green-glow);
 }
 
 .btn-icon {
   padding: var(--space-sm);
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-tertiary);
   color: var(--text-primary);
   border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
 }
 
 .btn-icon:hover,
 .btn-icon.active {
   background: var(--color-accent);
   color: var(--bg-primary);
+  border-color: var(--color-accent);
+}
+
+/* Background Classes */
+.bg-chat-body {
+  background: var(--color-chat-body);
+}
+
+.bg-header {
+  background: var(--color-header);
 }
 
 /* Input Classes */
 .input {
   padding: var(--space-md);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  background: var(--color-input);
   color: var(--text-primary);
   font-size: 0.95rem;
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: all 0.3s ease;
 }
 
 .input:focus {
-  border-color: var(--color-accent);
+  border-color: var(--neon-green);
+  box-shadow: 0 0 10px var(--neon-green-glow);
 }
 
 .textarea {
@@ -235,14 +261,19 @@ body {
 
 .message-user {
   align-self: flex-end;
-  background: var(--color-user);
+  background: var(--neon-green);
   color: var(--bg-primary);
+  border: 1px solid var(--neon-green);
+  box-shadow: 0 0 15px var(--neon-green-glow);
+  font-weight: 500;
 }
 
 .message-assistant {
   align-self: flex-start;
   background: var(--color-assistant);
   color: var(--text-primary);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* Code Classes */
@@ -284,6 +315,32 @@ body {
 @media (min-width: 1024px) {
   .message {
     max-width: 50%;
+  }
+}
+
+/* Responsive container sizing */
+@media (max-width: 640px) {
+  .container-sm {
+    max-width: 100%;
+    margin: 0;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .container-sm {
+    max-width: 95%;
+  }
+}
+
+@media (min-width: 1025px) and (max-width: 1440px) {
+  .container-sm {
+    max-width: 1200px;
+  }
+}
+
+@media (min-width: 1441px) {
+  .container-sm {
+    max-width: 1400px;
   }
 }
 
