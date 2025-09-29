@@ -2,20 +2,9 @@
 import { ref, onMounted, computed } from 'vue'
 import { createLMStudioService } from '@/services/lmstudio'
 import { useChatStore } from '@/stores/chat'
+import { searchGGUFTextGenModels, type LMStudioCatalogItem } from '@/services/huggingface'
 
-interface ModelInfo {
-  name: string
-  size: number
-  digest: string
-  modified_at: string
-  details?: {
-    format: string
-    family: string
-    families?: string[]
-    parameter_size: string
-    quantization_level: string
-  }
-}
+type ModelInfo = LMStudioCatalogItem
 
 interface PullProgress {
   status: string
@@ -50,7 +39,15 @@ const loadModels = async () => {
   try {
     // Load installed models using user-provided base URL
     const chatStore = useChatStore()
-    const baseUrl = (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl || ''
+    // Ensure base URL is loaded from storage
+    chatStore.loadLMStudioBaseUrlFromStorage()
+    const baseUrl = chatStore.lmStudioBaseUrl || ''
+
+    if (!baseUrl) {
+      console.warn('No LM Studio base URL configured')
+      return
+    }
+
     const service = createLMStudioService(baseUrl)
     const installed = await service.getAvailableModels()
     installedModels.value = installed.map((name) => ({
@@ -60,87 +57,10 @@ const loadModels = async () => {
       modified_at: '',
     }))
 
-    // Popular models available in LM Studio
-    availableModels.value = [
-      {
-        name: 'llama-3.2-3b-instruct',
-        size: 2000000000,
-        digest: 'sha256:abc123',
-        modified_at: '2024-01-15T10:30:00Z',
-        details: {
-          format: 'gguf',
-          family: 'llama',
-          families: ['llama'],
-          parameter_size: '3B',
-          quantization_level: 'Q4_0',
-        },
-      },
-      {
-        name: 'llama-3.2-1b-instruct',
-        size: 1000000000,
-        digest: 'sha256:def456',
-        modified_at: '2024-01-15T10:30:00Z',
-        details: {
-          format: 'gguf',
-          family: 'llama',
-          families: ['llama'],
-          parameter_size: '1B',
-          quantization_level: 'Q4_0',
-        },
-      },
-      {
-        name: 'gemma-2-2b-it',
-        size: 1500000000,
-        digest: 'sha256:ghi789',
-        modified_at: '2024-01-15T10:30:00Z',
-        details: {
-          format: 'gguf',
-          family: 'gemma',
-          families: ['gemma'],
-          parameter_size: '2B',
-          quantization_level: 'Q4_0',
-        },
-      },
-      {
-        name: 'qwen2.5-3b-instruct',
-        size: 2000000000,
-        digest: 'sha256:jkl012',
-        modified_at: '2024-01-15T10:30:00Z',
-        details: {
-          format: 'gguf',
-          family: 'qwen',
-          families: ['qwen'],
-          parameter_size: '3B',
-          quantization_level: 'Q4_0',
-        },
-      },
-      {
-        name: 'mistral-7b-instruct',
-        size: 4000000000,
-        digest: 'sha256:mno345',
-        modified_at: '2024-01-15T10:30:00Z',
-        details: {
-          format: 'gguf',
-          family: 'mistral',
-          families: ['mistral'],
-          parameter_size: '7B',
-          quantization_level: 'Q4_0',
-        },
-      },
-      {
-        name: 'phi-3-mini-4k-instruct',
-        size: 2500000000,
-        digest: 'sha256:pqr678',
-        modified_at: '2024-01-15T10:30:00Z',
-        details: {
-          format: 'gguf',
-          family: 'phi',
-          families: ['phi'],
-          parameter_size: '3.8B',
-          quantization_level: 'Q4_0',
-        },
-      },
-    ]
+    // Fetch models from Hugging Face that are likely to work in LM Studio
+    const hf = await searchGGUFTextGenModels(60)
+    // Basic quality filter: require size > 0 and format gguf
+    availableModels.value = hf.filter((m) => m.size >= 0 && m.details?.format === 'gguf')
   } catch (error) {
     console.error('Failed to load models:', error)
   } finally {
@@ -197,8 +117,10 @@ const formatDate = (dateString: string) => {
   })
 }
 
-onMounted(() => {
-  loadModels()
+onMounted(async () => {
+  // Wait for page to fully load, then add 1 second delay before making API request
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  await loadModels()
 })
 </script>
 
@@ -307,7 +229,17 @@ onMounted(() => {
           <div class="model-details">
             <div class="detail-row">
               <span class="detail-label">Size:</span>
-              <span class="detail-value">{{ formatFileSize(model.size) }}</span>
+              <span class="detail-value">{{
+                model.size > 0 ? formatFileSize(model.size) : 'Check HF page'
+              }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Downloads:</span>
+              <span class="detail-value">{{ model.downloads?.toLocaleString() || 'N/A' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Likes:</span>
+              <span class="detail-value">{{ model.likes?.toLocaleString() || 'N/A' }}</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">Format:</span>

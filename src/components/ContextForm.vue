@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import type { ContextItem, ContextType, ProgrammingLanguage } from '@/types/chat'
 import { CONTEXT_TYPES, PROGRAMMING_LANGUAGES, ERROR_MESSAGES } from '@/constants'
 import { useModal } from '@/composables/useModal'
 import { useForm } from '@/composables/useForm'
-import { useFileUpload } from '@/composables/useFileUpload'
 import BaseModal from './shared/BaseModal.vue'
 import FileUpload from './shared/FileUpload.vue'
 import BaseButton from './shared/BaseButton.vue'

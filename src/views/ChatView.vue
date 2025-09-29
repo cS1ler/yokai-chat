@@ -21,8 +21,9 @@ const messageInputRef = ref<{
 }>()
 // Scroll target: use the rendered message list container
 
-// Load active contexts on initialization
+// Load active contexts and base URL on initialization
 chatStore.loadActiveContextsFromStorage()
+chatStore.loadLMStudioBaseUrlFromStorage()
 
 // Auto-scroll to bottom when new messages are added
 const scrollToBottom = async (smooth = false) => {
@@ -122,7 +123,7 @@ async function handleSend(content: string, context?: ContextItem[]) {
 
   try {
     const service = createLMStudioService(
-      (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl || ''
+      (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl || '',
     )
     await service.sendMessageStream(
       fullMessage,
@@ -190,7 +191,7 @@ function handleContextSave(context: ContextItem) {
 async function testLMStudio() {
   try {
     const service = createLMStudioService(
-      (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl || ''
+      (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl || '',
     )
     const isConnected = await service.testConnection()
     if (isConnected) {

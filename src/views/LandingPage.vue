@@ -39,7 +39,7 @@ onMounted(async () => {
 function buildBaseUrlFromInput(): string {
   const trimmed = apiUrlInput.value.trim()
   if (!trimmed) return ''
-  const hasScheme = /^https?:\/\//i.test(trimmed)
+  const hasScheme = /^http?:\/\//i.test(trimmed)
   const withScheme = hasScheme ? trimmed : `http://${trimmed}`
   const withV1 = withScheme.endsWith('/v1') ? withScheme : `${withScheme.replace(/\/?$/, '')}/v1`
   return withV1
@@ -58,6 +58,12 @@ async function checkConnection() {
     }
     const service = createLMStudioService(baseUrl)
     isConnected.value = await withLoading(() => service.testConnection())
+    if (isConnected.value) {
+      // Persist base URL immediately after successful connection
+      chatStore.setLMStudioBaseUrl(baseUrl)
+      // Auto-load models so options appear right away
+      await loadModels()
+    }
     hasAttempted.value = true
     if (!isConnected.value) {
       connectionError.value = 'LM Studio is not running or not accessible'
@@ -72,14 +78,13 @@ async function checkConnection() {
 async function loadModels() {
   try {
     const { createLMStudioService } = await import('@/services/lmstudio')
-    const baseUrl = buildBaseUrlFromInput()
-    const service = createLMStudioService(baseUrl)
+    const service = createLMStudioService(
+      (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl ||
+        buildBaseUrlFromInput(),
+    )
     availableModels.value = await withLoadingModels(() => service.getAvailableModels())
-    // Always show the model prompt since we can't load models via API
-    if (availableModels.value.length > 0) {
-      selectedModel.value = availableModels.value[0]
-      showModelPrompt.value = true
-    } else {
+    // If none found, prompt user to load a model in LM Studio
+    if (availableModels.value.length === 0) {
       showLoadHelp.value = true
     }
   } catch (error) {
@@ -101,11 +106,22 @@ function selectModel(model: string) {
   router.push('/chat')
 }
 
-function proceedToChat() {
-  const baseUrl = buildBaseUrlFromInput()
+async function proceedToChat() {
+  const baseUrl =
+    (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl ||
+    buildBaseUrlFromInput()
   chatStore.setLMStudioBaseUrl(baseUrl)
   chatStore.setCurrentModel(selectedModel.value)
-  router.push('/chat')
+  // Verify chat endpoint with selected model
+  const { createLMStudioService } = await import('@/services/lmstudio')
+  const service = createLMStudioService(baseUrl)
+  const ok = await service.testChat(selectedModel.value)
+  if (ok) {
+    router.push('/chat')
+  } else {
+    connectionError.value = 'Chat endpoint failed. Ensure the model is running in LM Studio.'
+    isConnected.value = false
+  }
 }
 
 function retryConnection() {
@@ -248,10 +264,11 @@ function retryConnection() {
           <div v-else-if="showModelPrompt" class="model-prompt">
             <div class="prompt-icon">🤖</div>
             <h3>Connection established!</h3>
-            <p>Please load <strong>{{ selectedModel }}</strong> in LM Studio, then click the button below.</p>
-            <BaseButton variant="primary" @click="proceedToChat">
-              I loaded the model
-            </BaseButton>
+            <p>
+              Please load <strong>{{ selectedModel }}</strong> in LM Studio, then click the button
+              below.
+            </p>
+            <BaseButton variant="primary" @click="proceedToChat"> I loaded the model </BaseButton>
           </div>
 
           <div v-else class="models-list">

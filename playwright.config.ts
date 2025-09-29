@@ -9,9 +9,5 @@ export default defineConfig({
     trace: 'on-first-retry',
     video: 'retain-on-failure',
   },
-  projects: [
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-  ],
+  projects: [{ name: 'firefox', use: { ...devices['Desktop Firefox'] } }],
 })
-
-

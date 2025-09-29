@@ -1,11 +1,17 @@
-import type { LMStudioRequest, LMStudioResponse, LMStudioModel } from '@/types/chat'
-import { APP_CONFIG, ERROR_MESSAGES } from '@/constants'
+import type { ApiRequest, ApiModel, ServiceConfig } from '@/types/api'
+import { BaseApiService } from './BaseApiService'
+import { APP_CONFIG } from '@/constants'
+import { cachedFetch, cacheConfigs } from '@/utils/requestCache'
 
-export class LMStudioService {
-  private baseUrl: string
-
+export class LMStudioService extends BaseApiService {
   constructor(baseUrl: string = '') {
-    this.baseUrl = baseUrl
+    const config: ServiceConfig = {
+      baseUrl,
+      provider: 'lmstudio',
+      timeout: 30000,
+      retries: 3,
+    }
+    super(config)
   }
 
   async sendMessageStream(
@@ -37,7 +43,7 @@ export class LMStudioService {
         content: message,
       })
 
-      const request: LMStudioRequest = {
+      const request: ApiRequest = {
         model,
         messages,
         stream: true,
@@ -46,80 +52,56 @@ export class LMStudioService {
       }
 
       const response = await this.makeRequest(
-        `${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.CHAT_COMPLETIONS}`,
+        APP_CONFIG.API_ENDPOINTS.CHAT_COMPLETIONS,
         request,
         abortController,
       )
 
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
+        this.handleHttpError(response)
       }
 
       if (!response.body) {
         throw new Error('Response body is null')
       }
 
-      await this.processStream(response.body, onChunk, onError, abortController)
+      await this.processStream(
+        response.body,
+        {
+          onChunk,
+          onError,
+        },
+        abortController,
+      )
     } catch (error) {
       // Don't treat abort as an error
       if (error instanceof Error && error.name === 'AbortError') {
         return
       }
 
-      const errorMessage = this.handleError(error)
+      const errorMessage = this.handleStreamError(error)
       if (onError) {
         onError(errorMessage)
       }
-      throw new Error(errorMessage)
-    }
-  }
-
-  private async makeRequest(
-    url: string,
-    request: LMStudioRequest,
-    abortController?: AbortController,
-  ): Promise<Response> {
-    try {
-      return await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'text/event-stream',
-        },
-        body: JSON.stringify(request),
-        signal: abortController?.signal,
-      })
-    } catch (error) {
       throw error
     }
   }
 
   async getAvailableModels(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`, {
-        headers: { Accept: 'application/json' },
-      })
+      const url = `${this.config.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`
 
-      if (!response.ok) {
-        // Treat 404/401 as "no models" to avoid noisy errors during setup
-        if (response.status === 404 || response.status === 401) {
-          return []
-        }
-        throw new Error(`HTTP ${response.status}: Failed to fetch models`)
-      }
-      // Ensure JSON, handle non-JSON gracefully
-      const contentType = response.headers.get('content-type') || ''
-      if (!contentType.includes('application/json')) {
-        // Avoid noisy warnings in UI; surface as empty list
-        console.debug(
-          'Models endpoint did not return JSON',
-          { status: response.status, contentType },
-        )
-        return []
-      }
-      const data: { data: LMStudioModel[] } = await response.json()
-      return data?.data?.map((model: LMStudioModel) => model.id) || []
+      // Use cached fetch for better performance
+      const data: { data: ApiModel[] } = await cachedFetch(
+        url,
+        {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        },
+        cacheConfigs.models,
+      )
+
+      return data?.data?.map((model: ApiModel) => model.id) || []
     } catch (error) {
       console.error('Failed to fetch models:', error)
       return []
@@ -135,88 +117,46 @@ export class LMStudioService {
     }
   }
 
-  async getModelInfo(modelId: string): Promise<LMStudioModel | null> {
+  async testChat(modelId: string): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`)
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: Failed to fetch model info`)
+      const request: ApiRequest = {
+        model: modelId,
+        messages: [
+          {
+            role: 'user',
+            content: 'ping',
+          },
+        ],
+        stream: false,
+        temperature: 0,
+        max_tokens: 1,
       }
+      const response = await this.makeRequest(APP_CONFIG.API_ENDPOINTS.CHAT_COMPLETIONS, request)
+      return response.ok
+    } catch {
+      return false
+    }
+  }
 
-      const data: { data: LMStudioModel[] } = await response.json()
-      return data.data?.find((model: LMStudioModel) => model.id === modelId) || null
+  async getModelInfo(modelId: string): Promise<ApiModel | null> {
+    try {
+      const url = `${this.config.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`
+
+      // Use cached fetch for better performance
+      const data: { data: ApiModel[] } = await cachedFetch(
+        url,
+        {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        },
+        cacheConfigs.modelInfo,
+      )
+
+      return data.data?.find((model: ApiModel) => model.id === modelId) || null
     } catch (error) {
       console.error('Failed to fetch model info:', error)
       return null
     }
-  }
-
-  private async processStream(
-    stream: ReadableStream<Uint8Array>,
-    onChunk: (chunk: string) => void,
-    onError?: (error: string) => void,
-    abortController?: AbortController,
-  ): Promise<void> {
-    const reader = stream.getReader()
-    const decoder = new TextDecoder()
-
-    try {
-      while (true) {
-        // Check if the request was aborted
-        if (abortController?.signal.aborted) {
-          break
-        }
-
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n').filter((line) => line.trim() !== '')
-
-        for (const line of lines) {
-          try {
-            // Handle Server-Sent Events format
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6)
-              if (data === '[DONE]') {
-                return
-              }
-
-              const parsed: LMStudioResponse = JSON.parse(data)
-
-              if (parsed.error) {
-                if (onError) {
-                  onError(parsed.error.message || 'Unknown error')
-                }
-                return
-              }
-
-              if (parsed.choices?.[0]?.delta?.content) {
-                onChunk(parsed.choices[0].delta.content)
-              }
-            }
-          } catch {
-            // Ignore malformed JSON lines (keepalive, etc.)
-            console.debug('Ignoring malformed JSON:', line)
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock()
-    }
-  }
-
-  private handleError(error: unknown): string {
-    if (error instanceof Error) {
-      if (error.message.includes('Failed to fetch')) {
-        return ERROR_MESSAGES.LMSTUDIO_CONNECTION
-      }
-      if (error.message.includes('NetworkError')) {
-        return ERROR_MESSAGES.NETWORK_ERROR
-      }
-      return error.message
-    }
-    return ERROR_MESSAGES.UNKNOWN_ERROR
   }
 }
 
@@ -225,22 +165,5 @@ export function createLMStudioService(baseUrl: string) {
   return new LMStudioService(baseUrl)
 }
 
-// Export singleton instance with direct connection to LM Studio
-export const lmStudioService = new LMStudioService(APP_CONFIG.LMSTUDIO_BASE_URL)
-
-// Export legacy function for backward compatibility
-export async function sendMessageStream(
-  message: string,
-  onChunk: (chunk: string) => void,
-  chatHistory?: Array<{ role: 'user' | 'assistant' | 'system' | 'developer'; content: string }>,
-): Promise<void> {
-  console.warn('sendMessageStream legacy export uses default base URL; prefer createLMStudioService')
-  return lmStudioService.sendMessageStream(
-    message,
-    APP_CONFIG.DEFAULT_MODEL,
-    onChunk,
-    undefined,
-    undefined,
-    chatHistory,
-  )
-}
+// Note: No longer exporting a singleton instance since base URL is now dynamic
+// Use createLMStudioService(baseUrl) instead

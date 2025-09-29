@@ -1,81 +1,51 @@
 <script setup lang="ts">
-import { onMounted, onUpdated, nextTick } from 'vue'
+import { computed } from 'vue'
 import type { Message } from '@/types/chat'
 import { useMarkdown } from '@/composables/useMarkdown'
+import { extractFilename } from '@/utils/string'
+import VirtualMessageList from './VirtualMessageList.vue'
 import TypingIndicator from './TypingIndicator.vue'
 
-defineProps<{
+interface Props {
   messages: Message[]
   isTyping?: boolean
-}>()
+  useVirtualScrolling?: boolean
+  virtualScrollingThreshold?: number
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  useVirtualScrolling: true,
+  virtualScrollingThreshold: 100,
+})
 
 const { parseMarkdown } = useMarkdown()
 
-// Extract filename from context content
-const extractFilename = (content: string) => {
-  // Look for [TYPE] pattern at the beginning
-  const match = content.match(/^\[([^\]]+)\]\s+(.+)/)
-  if (match) {
-    const [, , title] = match
-    return title.split('\n')[0]
-  }
-  return 'Context'
-}
-
-function enhanceCodeBlocks() {
-  // Add copy buttons to all code blocks within rendered markdown
-  const containers = document.querySelectorAll('.markdown-content')
-  containers.forEach((container) => {
-    const pres = container.querySelectorAll('pre')
-    pres.forEach((pre) => {
-      // Skip if already enhanced
-      if (pre.querySelector('.copy-code-btn')) return
-      pre.classList.add('pre-with-toolbar')
-
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.className = 'copy-code-btn'
-      button.title = 'Copy code'
-      button.textContent = 'Copy'
-
-      button.addEventListener('click', async (e) => {
-        e.stopPropagation()
-        const code = pre.querySelector('code')
-        const text = code ? code.textContent ?? '' : pre.textContent ?? ''
-        try {
-          await navigator.clipboard.writeText(text)
-          const old = button.textContent
-          button.textContent = 'Copied'
-          setTimeout(() => (button.textContent = old), 1200)
-        } catch {
-          // Fallback: select text
-          const range = document.createRange()
-          range.selectNodeContents(pre)
-          const sel = window.getSelection()
-          sel?.removeAllRanges()
-          sel?.addRange(range)
-        }
-      })
-
-      pre.appendChild(button)
-    })
-  })
-}
-
-onMounted(async () => {
-  await nextTick()
-  enhanceCodeBlocks()
+// Determine if we should use virtual scrolling
+const shouldUseVirtualScrolling = computed(() => {
+  return props.useVirtualScrolling && props.messages.length > props.virtualScrollingThreshold
 })
 
-onUpdated(async () => {
-  await nextTick()
-  enhanceCodeBlocks()
-})
+// Message class helper for regular rendering
+const messageClassFor = (role: Message['role']) => {
+  if (role === 'assistant') return 'message-assistant'
+  if (role === 'developer') return 'message-developer'
+  return 'message-user'
+}
 </script>
 
 <template>
-  <div class="message-list-container">
-    <div v-for="msg in messages" :key="msg.id" :class="['message', `message-${msg.role}`]">
+  <!-- Use virtual scrolling for large message lists -->
+  <VirtualMessageList
+    v-if="shouldUseVirtualScrolling"
+    :messages="messages"
+    :is-typing="isTyping"
+    :item-height="100"
+    :overscan="5"
+  />
+
+  <!-- Use regular rendering for small message lists -->
+  <div v-else class="message-list-container">
+    <div v-for="msg in messages" :key="msg.id" :class="['message', messageClassFor(msg.role)]">
       <div
         v-if="msg.role === 'assistant'"
         v-html="parseMarkdown(msg.content)"

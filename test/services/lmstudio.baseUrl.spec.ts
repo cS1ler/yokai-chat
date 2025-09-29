@@ -21,5 +21,3 @@ describe('LMStudioService baseUrl', () => {
     expect(fetchSpy).toHaveBeenCalledWith(`${baseUrl}/models`, expect.anything())
   })
 })
-
-
