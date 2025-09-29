@@ -24,6 +24,7 @@ export const useChatStore = defineStore('chat', () => {
   const activeContextIds = ref<string[]>([]) // Contexts that are currently active/loaded
   const availableModels = ref<string[]>([])
   const isLoadingModels = ref(false)
+  const lmStudioBaseUrl = ref<string>(APP_CONFIG.LMSTUDIO_BASE_URL)
 
   // Getters
   const chatState = computed<ChatState>(() => ({
@@ -234,14 +235,33 @@ export const useChatStore = defineStore('chat', () => {
 
     isLoadingModels.value = true
     try {
-      const { lmStudioService } = await import('@/services/lmstudio')
-      const models = await lmStudioService.getAvailableModels()
+      const { createLMStudioService } = await import('@/services/lmstudio')
+      const service = createLMStudioService(lmStudioBaseUrl.value)
+      const models = await service.getAvailableModels()
       availableModels.value = models
     } catch (error) {
       console.error('Failed to load available models:', error)
       availableModels.value = []
     } finally {
       isLoadingModels.value = false
+    }
+  }
+
+  const setLMStudioBaseUrl = (url: string) => {
+    lmStudioBaseUrl.value = url
+    try {
+      localStorage.setItem('yokai-chat-lmstudio-base-url', url)
+    } catch (err) {
+      console.warn('Failed to persist LM Studio base URL:', err)
+    }
+  }
+
+  const loadLMStudioBaseUrlFromStorage = () => {
+    try {
+      const stored = localStorage.getItem('yokai-chat-lmstudio-base-url')
+      if (stored) lmStudioBaseUrl.value = stored
+    } catch (err) {
+      console.warn('Failed to load LM Studio base URL from storage:', err)
     }
   }
 
@@ -279,6 +299,7 @@ export const useChatStore = defineStore('chat', () => {
     isStreaming,
     currentModel,
     error,
+    lmStudioBaseUrl,
     savedContexts,
     selectedContextIds,
     activeContextIds,
@@ -307,6 +328,8 @@ export const useChatStore = defineStore('chat', () => {
     // Model management
     loadCurrentModelFromStorage,
     loadAvailableModels,
+    setLMStudioBaseUrl,
+    loadLMStudioBaseUrlFromStorage,
 
     // Context management
     saveContext,

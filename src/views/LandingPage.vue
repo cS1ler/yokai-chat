@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
-import { lmStudioService } from '@/services/lmstudio'
 import { useLoading } from '@/composables/useLoading'
 import LoadingSpinner from '@/components/shared/LoadingSpinner.vue'
 import BaseButton from '@/components/shared/BaseButton.vue'
@@ -15,22 +14,27 @@ const { isLoading: isLoadingModels, withLoading: withLoadingModels } = useLoadin
 const isConnected = ref(false)
 const connectionError = ref('')
 const availableModels = ref<string[]>([])
+const apiUrlInput = ref<string>('http://<your-lmstudio-host>:<port>/v1')
 
 // Check LM Studio connection and load models
 onMounted(async () => {
-  await checkConnection()
-  if (isConnected.value) {
-    await loadModels()
+  chatStore.loadLMStudioBaseUrlFromStorage()
+  const saved = (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl
+  if (saved) {
+    apiUrlInput.value = saved
   }
 })
 
 async function checkConnection() {
   try {
-    isConnected.value = await withLoading(() => lmStudioService.testConnection())
+    // Use a service instance with the provided URL for connection test
+    const { createLMStudioService } = await import('@/services/lmstudio')
+    const service = createLMStudioService(apiUrlInput.value)
+    isConnected.value = await withLoading(() => service.testConnection())
     if (!isConnected.value) {
       connectionError.value = 'LM Studio is not running or not accessible'
     }
-  } catch (error) {
+  } catch {
     isConnected.value = false
     connectionError.value = 'Failed to connect to LM Studio'
   }
@@ -38,7 +42,9 @@ async function checkConnection() {
 
 async function loadModels() {
   try {
-    availableModels.value = await withLoadingModels(() => lmStudioService.getAvailableModels())
+    const { createLMStudioService } = await import('@/services/lmstudio')
+    const service = createLMStudioService(apiUrlInput.value)
+    availableModels.value = await withLoadingModels(() => service.getAvailableModels())
   } catch (error) {
     console.error('Failed to load models:', error)
   }
@@ -52,6 +58,7 @@ function scrollToModels() {
 }
 
 function selectModel(model: string) {
+  chatStore.setLMStudioBaseUrl(apiUrlInput.value)
   chatStore.setCurrentModel(model)
   router.push('/chat')
 }
@@ -128,6 +135,19 @@ function retryConnection() {
           <p class="section-subtitle">
             Choose from available models to start your conversation with Yokai Chat
           </p>
+        </div>
+
+        <!-- API URL Input -->
+        <div class="api-input-row">
+          <input
+            v-model="apiUrlInput"
+            type="text"
+            class="input flex-1"
+            placeholder="http://localhost:1234/v1"
+          />
+          <BaseButton variant="primary" @click="checkConnection" :loading="isCheckingConnection">
+            Connect
+          </BaseButton>
         </div>
 
         <!-- Connection Status -->
@@ -383,6 +403,14 @@ function retryConnection() {
 .container {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.api-input-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  max-width: 800px;
+  margin: 0 auto var(--space-8);
 }
 
 .section-header {

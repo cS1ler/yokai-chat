@@ -3,7 +3,6 @@ import { APP_CONFIG, ERROR_MESSAGES } from '@/constants'
 
 export class LMStudioService {
   private baseUrl: string
-  private fallbackUrl: string = 'http://localhost:1234/v1'
 
   constructor(baseUrl: string = '') {
     this.baseUrl = baseUrl
@@ -92,39 +91,13 @@ export class LMStudioService {
         signal: abortController?.signal,
       })
     } catch (error) {
-      // If proxy fails, try direct connection
-      if (url.startsWith('/api/lmstudio')) {
-        console.warn('Proxy failed, trying direct connection to LM Studio')
-        const directUrl = url.replace('/api/lmstudio', this.fallbackUrl)
-        return await fetch(directUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'text/event-stream',
-          },
-          body: JSON.stringify(request),
-          signal: abortController?.signal,
-        })
-      }
       throw error
     }
   }
 
   async getAvailableModels(): Promise<string[]> {
     try {
-      let response: Response
-
-      try {
-        response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`)
-      } catch (error) {
-        // If proxy fails, try direct connection
-        if (this.baseUrl.startsWith('/api/lmstudio')) {
-          console.warn('Proxy failed for models, trying direct connection to LM Studio')
-          response = await fetch(`${this.fallbackUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`)
-        } else {
-          throw error
-        }
-      }
+      const response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`)
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: Failed to fetch models`)
@@ -230,6 +203,11 @@ export class LMStudioService {
     }
     return ERROR_MESSAGES.UNKNOWN_ERROR
   }
+}
+
+// Factory to create a service instance with a custom base URL
+export function createLMStudioService(baseUrl: string) {
+  return new LMStudioService(baseUrl)
 }
 
 // Export singleton instance with direct connection to LM Studio
