@@ -22,7 +22,7 @@ const toggleSelection = (id: string) => {
 const handleSelect = () => {
   const selectedContexts = chatStore.getSelectedContexts()
   emit('select', selectedContexts)
-  emit('close')
+  closeManager()
 }
 
 const handleDelete = (id: string) => {
@@ -44,10 +44,7 @@ defineExpose({
 </script>
 
 <template>
-  <div
-    v-if="showManager"
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-  >
+  <div v-if="showManager" class="modal-overlay">
     <div
       class="bg-primary border border-border rounded-lg p-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
     >
@@ -142,6 +139,9 @@ defineExpose({
 }
 .z-50 {
   z-index: 50;
+}
+.z-\[100\] {
+  z-index: 100;
 }
 .bg-primary {
   background: var(--bg-primary);
@@ -254,5 +254,25 @@ defineExpose({
   background: var(--neon-green);
   border-color: var(--neon-green);
   box-shadow: 0 0 12px var(--neon-green-glow);
+}
+
+/* Modal overlay with explicit positioning */
+.modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 1000 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 </style>

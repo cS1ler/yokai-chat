@@ -50,9 +50,11 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const updateMessage = (id: number, updates: Partial<Message>) => {
-    const message = messages.value.find((m) => m.id === id)
-    if (message) {
-      Object.assign(message, updates)
+    const messageIndex = messages.value.findIndex((m) => m.id === id)
+    if (messageIndex !== -1) {
+      // Create a new object to ensure reactivity
+      const updatedMessage = { ...messages.value[messageIndex], ...updates }
+      messages.value[messageIndex] = updatedMessage
     }
   }
 

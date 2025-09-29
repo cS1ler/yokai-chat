@@ -20,6 +20,7 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'send', content: string, context?: ContextItem[]): void
   (e: 'stop'): void
+  (e: 'open-context-manager'): void
 }>()
 
 // Load saved contexts on mount
@@ -69,16 +70,24 @@ function saveContextToStore(context: ContextItem) {
 }
 
 function openContextManager() {
-  contextManagerRef.value?.openManager()
+  emit('open-context-manager')
 }
 
 function handleContextSelection(selectedContexts: ContextItem[]) {
   contextItems.value = selectedContexts
 }
+
+function setContextItems(selectedContexts: ContextItem[]) {
+  contextItems.value = selectedContexts
+}
+
+defineExpose({
+  setContextItems,
+})
 </script>
 
 <template>
-  <div class="flex flex-col gap-md p-lg border-t border-border bg-primary">
+  <div class="flex flex-col gap-md">
     <!-- Context Items Display -->
     <div v-if="hasContext" class="flex flex-col gap-sm">
       <ContextItemComponent
@@ -97,8 +106,7 @@ function handleContextSelection(selectedContexts: ContextItem[]) {
       @cancel="() => {}"
     />
 
-    <!-- Context Manager Modal -->
-    <ContextManager ref="contextManagerRef" @select="handleContextSelection" @close="() => {}" />
+    <!-- Context Manager Modal is now handled by ChatView -->
 
     <!-- Context Management -->
     <div v-if="isAdvancedMode" class="flex gap-sm">

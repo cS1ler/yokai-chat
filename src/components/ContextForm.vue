@@ -184,7 +184,11 @@ defineExpose({
 </script>
 
 <template>
-  <div v-if="showForm" class="card">
+  <div
+    v-if="showForm"
+    class="modal-overlay"
+  >
+    <div class="card max-w-2xl w-full max-h-[80vh] overflow-hidden">
     <div class="card-header">
       <h4>Add Context</h4>
       <button type="button" @click="handleCancel" class="btn-icon">×</button>
@@ -256,6 +260,7 @@ defineExpose({
       <button type="button" @click="handleCancel" class="btn btn-secondary">Cancel</button>
       <button type="button" @click="handleAdd" class="btn btn-primary">Add Context</button>
       <button type="button" @click="handleSave" class="btn btn-accent">Save Context</button>
+    </div>
     </div>
   </div>
 </template>
@@ -342,5 +347,66 @@ defineExpose({
 }
 .bg-transparent {
   background: transparent;
+}
+
+/* Modal overlay classes */
+.fixed {
+  position: fixed;
+}
+.inset-0 {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+.bg-black {
+  background-color: #000;
+}
+.bg-opacity-50 {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+.items-center {
+  align-items: center;
+}
+.justify-center {
+  justify-content: center;
+}
+.z-50 {
+  z-index: 50;
+}
+.z-\[100\] {
+  z-index: 100;
+}
+.max-w-2xl {
+  max-width: 42rem;
+}
+.w-full {
+  width: 100%;
+}
+.max-h-\[80vh\] {
+  max-height: 80vh;
+}
+.overflow-hidden {
+  overflow: hidden;
+}
+
+/* Modal overlay with explicit positioning */
+.modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 1000 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 </style>

@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import MessageList from '@/components/MessageList.vue'
 import MessageInput from '@/components/MessageInput.vue'
 import ModelSelector from '@/components/ModelSelector.vue'
+import ContextManager from '@/components/ContextManager.vue'
 import { useChatStore } from '@/stores/chat'
 import { lmStudioService } from '@/services/lmstudio'
 import { useMarkdown } from '@/composables/useMarkdown'
@@ -10,6 +12,8 @@ import type { ContextItem } from '@/types/chat'
 
 const chatStore = useChatStore()
 const { formatMessageWithContext } = useMarkdown()
+const contextManagerRef = ref<InstanceType<typeof ContextManager>>()
+const messageInputRef = ref<{ setContextItems: (contexts: ContextItem[]) => void }>()
 
 async function handleSend(content: string, context?: ContextItem[]) {
   // Add user message (only the text, not the context)
@@ -36,8 +40,11 @@ async function handleSend(content: string, context?: ContextItem[]) {
       fullMessage,
       chatStore.currentModel,
       (chunk) => {
+        // Get the current content from the store to avoid race conditions
+        const currentMessage = chatStore.messages.find((m) => m.id === assistantMessage.id)
+        const currentContent = currentMessage?.content || ''
         chatStore.updateMessage(assistantMessage.id, {
-          content: assistantMessage.content + chunk,
+          content: currentContent + chunk,
         })
       },
       (error) => {
@@ -62,6 +69,15 @@ async function handleSend(content: string, context?: ContextItem[]) {
 
 function handleStop() {
   chatStore.stopStreaming()
+}
+
+function handleContextSelection(selectedContexts: ContextItem[]) {
+  // Pass the selected contexts to MessageInput component
+  messageInputRef.value?.setContextItems(selectedContexts)
+}
+
+function openContextManager() {
+  contextManagerRef.value?.openManager()
 }
 
 async function testLMStudio() {
@@ -95,9 +111,22 @@ async function testLMStudio() {
     <div class="chat-container">
       <div class="chat-body">
         <MessageList :messages="chatStore.messages" :is-typing="chatStore.isTyping" />
-        <MessageInput :is-streaming="chatStore.isStreaming" @send="handleSend" @stop="handleStop" />
       </div>
     </div>
+
+    <!-- Fixed bottom input -->
+    <div class="fixed-input-container">
+      <MessageInput
+        ref="messageInputRef"
+        :is-streaming="chatStore.isStreaming"
+        @send="handleSend"
+        @stop="handleStop"
+        @open-context-manager="openContextManager"
+      />
+    </div>
+
+    <!-- Context Manager Modal - moved to top level -->
+    <ContextManager ref="contextManagerRef" @select="handleContextSelection" @close="() => {}" />
   </div>
 </template>
 
@@ -227,7 +256,8 @@ async function testLMStudio() {
   flex: 1;
   display: flex;
   justify-content: center;
-  padding: 2rem;
+  padding: 2rem 2rem 0 2rem; /* Remove bottom padding to make room for fixed input */
+  margin-bottom: 120px; /* Add space for the fixed input */
 }
 
 .chat-body {
@@ -241,5 +271,23 @@ async function testLMStudio() {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.fixed-input-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-chat-body);
+  border: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(10px);
+  z-index: 100;
+  padding: var(--space-lg) 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.3);
 }
 </style>

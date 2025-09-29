@@ -33,7 +33,7 @@ export class LMStudioService {
       const response = await this.makeRequest(
         `${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.CHAT_COMPLETIONS}`,
         request,
-        abortController
+        abortController,
       )
 
       if (!response.ok) {
@@ -60,13 +60,17 @@ export class LMStudioService {
     }
   }
 
-  private async makeRequest(url: string, request: LMStudioRequest, abortController?: AbortController): Promise<Response> {
+  private async makeRequest(
+    url: string,
+    request: LMStudioRequest,
+    abortController?: AbortController,
+  ): Promise<Response> {
     try {
       return await fetch(url, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
+          Accept: 'text/event-stream',
         },
         body: JSON.stringify(request),
         signal: abortController?.signal,
@@ -78,9 +82,9 @@ export class LMStudioService {
         const directUrl = url.replace('/api/lmstudio', this.fallbackUrl)
         return await fetch(directUrl, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
-            'Accept': 'text/event-stream',
+            Accept: 'text/event-stream',
           },
           body: JSON.stringify(request),
           signal: abortController?.signal,
@@ -93,7 +97,7 @@ export class LMStudioService {
   async getAvailableModels(): Promise<string[]> {
     try {
       let response: Response
-      
+
       try {
         response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`)
       } catch (error) {
