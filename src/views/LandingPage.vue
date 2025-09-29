@@ -5,6 +5,7 @@ import { useChatStore } from '@/stores/chat'
 import { useLoading } from '@/composables/useLoading'
 import LoadingSpinner from '@/components/shared/LoadingSpinner.vue'
 import BaseButton from '@/components/shared/BaseButton.vue'
+import BaseModal from '@/components/shared/BaseModal.vue'
 
 const router = useRouter()
 const chatStore = useChatStore()
@@ -14,37 +15,73 @@ const { isLoading: isLoadingModels, withLoading: withLoadingModels } = useLoadin
 const isConnected = ref(false)
 const connectionError = ref('')
 const availableModels = ref<string[]>([])
-const apiUrlInput = ref<string>('http://<your-lmstudio-host>:<port>/v1')
+const apiUrlInput = ref<string>('') // expect "host:port" or "ip:port"
+const hasAttempted = ref(false)
+const showLoadHelp = ref(false)
+const selectedModel = ref<string>('')
+const showModelPrompt = ref(false)
 
 // Check LM Studio connection and load models
 onMounted(async () => {
   chatStore.loadLMStudioBaseUrlFromStorage()
   const saved = (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl
   if (saved) {
-    apiUrlInput.value = saved
+    try {
+      const url = new URL(saved)
+      const hostPort = `${url.hostname}${url.port ? ':' + url.port : ''}`
+      apiUrlInput.value = hostPort
+    } catch {
+      apiUrlInput.value = saved.replace(/^https?:\/\//, '').replace(/\/?v1\/?$/, '')
+    }
   }
 })
+
+function buildBaseUrlFromInput(): string {
+  const trimmed = apiUrlInput.value.trim()
+  if (!trimmed) return ''
+  const hasScheme = /^https?:\/\//i.test(trimmed)
+  const withScheme = hasScheme ? trimmed : `http://${trimmed}`
+  const withV1 = withScheme.endsWith('/v1') ? withScheme : `${withScheme.replace(/\/?$/, '')}/v1`
+  return withV1
+}
 
 async function checkConnection() {
   try {
     // Use a service instance with the provided URL for connection test
     const { createLMStudioService } = await import('@/services/lmstudio')
-    const service = createLMStudioService(apiUrlInput.value)
+    const baseUrl = buildBaseUrlFromInput()
+    if (!baseUrl) {
+      connectionError.value = 'Enter host:port to connect'
+      hasAttempted.value = true
+      isConnected.value = false
+      return
+    }
+    const service = createLMStudioService(baseUrl)
     isConnected.value = await withLoading(() => service.testConnection())
+    hasAttempted.value = true
     if (!isConnected.value) {
       connectionError.value = 'LM Studio is not running or not accessible'
     }
   } catch {
     isConnected.value = false
     connectionError.value = 'Failed to connect to LM Studio'
+    hasAttempted.value = true
   }
 }
 
 async function loadModels() {
   try {
     const { createLMStudioService } = await import('@/services/lmstudio')
-    const service = createLMStudioService(apiUrlInput.value)
+    const baseUrl = buildBaseUrlFromInput()
+    const service = createLMStudioService(baseUrl)
     availableModels.value = await withLoadingModels(() => service.getAvailableModels())
+    // Always show the model prompt since we can't load models via API
+    if (availableModels.value.length > 0) {
+      selectedModel.value = availableModels.value[0]
+      showModelPrompt.value = true
+    } else {
+      showLoadHelp.value = true
+    }
   } catch (error) {
     console.error('Failed to load models:', error)
   }
@@ -58,8 +95,16 @@ function scrollToModels() {
 }
 
 function selectModel(model: string) {
-  chatStore.setLMStudioBaseUrl(apiUrlInput.value)
+  const baseUrl = buildBaseUrlFromInput()
+  chatStore.setLMStudioBaseUrl(baseUrl)
   chatStore.setCurrentModel(model)
+  router.push('/chat')
+}
+
+function proceedToChat() {
+  const baseUrl = buildBaseUrlFromInput()
+  chatStore.setLMStudioBaseUrl(baseUrl)
+  chatStore.setCurrentModel(selectedModel.value)
   router.push('/chat')
 }
 
@@ -137,13 +182,13 @@ function retryConnection() {
           </p>
         </div>
 
-        <!-- API URL Input -->
+        <!-- API Host:Port Input -->
         <div class="api-input-row">
           <input
             v-model="apiUrlInput"
             type="text"
             class="input flex-1"
-            placeholder="http://localhost:1234/v1"
+            placeholder="127.0.0.1:1234"
           />
           <BaseButton variant="primary" @click="checkConnection" :loading="isCheckingConnection">
             Connect
@@ -157,7 +202,7 @@ function retryConnection() {
             <span>Checking LM Studio connection...</span>
           </div>
 
-          <div v-else-if="!isConnected" class="status-card error">
+          <div v-else-if="hasAttempted && !isConnected" class="status-card error">
             <div class="status-icon">⚠️</div>
             <div class="status-content">
               <h3>LM Studio Not Connected</h3>
@@ -172,7 +217,7 @@ function retryConnection() {
             </div>
           </div>
 
-          <div v-else class="status-card success">
+          <div v-else-if="isConnected" class="status-card success">
             <div class="status-icon">✅</div>
             <div class="status-content">
               <h3>LM Studio Connected</h3>
@@ -195,6 +240,18 @@ function retryConnection() {
             <BaseButton variant="secondary" @click="loadModels" :loading="isLoadingModels">
               Refresh Models
             </BaseButton>
+            <BaseButton variant="primary" @click="showLoadHelp = true">
+              How to load a model
+            </BaseButton>
+          </div>
+
+          <div v-else-if="showModelPrompt" class="model-prompt">
+            <div class="prompt-icon">🤖</div>
+            <h3>Connection established!</h3>
+            <p>Please load <strong>{{ selectedModel }}</strong> in LM Studio, then click the button below.</p>
+            <BaseButton variant="primary" @click="proceedToChat">
+              I loaded the model
+            </BaseButton>
           </div>
 
           <div v-else class="models-list">
@@ -215,6 +272,27 @@ function retryConnection() {
         </div>
       </div>
     </section>
+    <!-- Help Modal -->
+    <BaseModal
+      :isOpen="showLoadHelp"
+      @close="showLoadHelp = false"
+      title="Load a model in LM Studio"
+    >
+      <template #default>
+        <div class="help-content">
+          <ol>
+            <li>Open the LM Studio application on your machine.</li>
+            <li>Go to the Models section and download a model if needed.</li>
+            <li>Click "Start" or "Load" to run the selected model.</li>
+            <li>Ensure the server is running at the host:port you entered above.</li>
+          </ol>
+          <p>Once a model is loaded, click "Refresh Models" to continue.</p>
+        </div>
+      </template>
+      <template #footer>
+        <BaseButton variant="primary" @click="showLoadHelp = false">Got it</BaseButton>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
@@ -503,6 +581,33 @@ function retryConnection() {
   font-weight: 600;
   color: var(--color-text-primary);
   margin-bottom: var(--space-2);
+}
+
+.no-models .btn + .btn {
+  margin-left: var(--space-3);
+}
+
+.model-prompt {
+  text-align: center;
+  padding: var(--space-12);
+  color: var(--color-text-secondary);
+}
+
+.prompt-icon {
+  font-size: 4rem;
+  margin-bottom: var(--space-4);
+}
+
+.model-prompt h3 {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.help-content ol {
+  padding-left: var(--space-6);
+  line-height: var(--leading-relaxed);
 }
 
 .models-list {
