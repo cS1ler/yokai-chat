@@ -6,7 +6,7 @@ import ModelSelector from '@/components/ModelSelector.vue'
 import ContextManager from '@/components/ContextManager.vue'
 import ContextForm from '@/components/ContextForm.vue'
 import { useChatStore } from '@/stores/chat'
-import { lmStudioService } from '@/services/lmstudio'
+import { createLMStudioService } from '@/services/lmstudio'
 import { useMarkdown } from '@/composables/useMarkdown'
 import { ERROR_MESSAGES } from '@/constants'
 import type { ContextItem } from '@/types/chat'
@@ -121,7 +121,10 @@ async function handleSend(content: string, context?: ContextItem[]) {
     }))
 
   try {
-    await lmStudioService.sendMessageStream(
+    const service = createLMStudioService(
+      (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl || ''
+    )
+    await service.sendMessageStream(
       fullMessage,
       chatStore.currentModel,
       (chunk) => {
@@ -186,9 +189,12 @@ function handleContextSave(context: ContextItem) {
 
 async function testLMStudio() {
   try {
-    const isConnected = await lmStudioService.testConnection()
+    const service = createLMStudioService(
+      (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl || ''
+    )
+    const isConnected = await service.testConnection()
     if (isConnected) {
-      const models = await lmStudioService.getAvailableModels()
+      const models = await service.getAvailableModels()
       alert(`Connected to LM Studio! Available models: ${models.join(', ') || 'none'}`)
     } else {
       alert('⚠️ Could not reach LM Studio')
