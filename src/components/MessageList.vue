@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted, onUpdated, nextTick } from 'vue'
 import type { Message } from '@/types/chat'
 import { useMarkdown } from '@/composables/useMarkdown'
 import TypingIndicator from './TypingIndicator.vue'
@@ -15,11 +16,61 @@ const extractFilename = (content: string) => {
   // Look for [TYPE] pattern at the beginning
   const match = content.match(/^\[([^\]]+)\]\s+(.+)/)
   if (match) {
-    const [, type, title] = match
-    return title.split('\n')[0] // Get first line (filename/title)
+    const [, , title] = match
+    return title.split('\n')[0]
   }
   return 'Context'
 }
+
+function enhanceCodeBlocks() {
+  // Add copy buttons to all code blocks within rendered markdown
+  const containers = document.querySelectorAll('.markdown-content')
+  containers.forEach((container) => {
+    const pres = container.querySelectorAll('pre')
+    pres.forEach((pre) => {
+      // Skip if already enhanced
+      if (pre.querySelector('.copy-code-btn')) return
+      pre.classList.add('pre-with-toolbar')
+
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'copy-code-btn'
+      button.title = 'Copy code'
+      button.textContent = 'Copy'
+
+      button.addEventListener('click', async (e) => {
+        e.stopPropagation()
+        const code = pre.querySelector('code')
+        const text = code ? code.textContent ?? '' : pre.textContent ?? ''
+        try {
+          await navigator.clipboard.writeText(text)
+          const old = button.textContent
+          button.textContent = 'Copied'
+          setTimeout(() => (button.textContent = old), 1200)
+        } catch {
+          // Fallback: select text
+          const range = document.createRange()
+          range.selectNodeContents(pre)
+          const sel = window.getSelection()
+          sel?.removeAllRanges()
+          sel?.addRange(range)
+        }
+      })
+
+      pre.appendChild(button)
+    })
+  })
+}
+
+onMounted(async () => {
+  await nextTick()
+  enhanceCodeBlocks()
+})
+
+onUpdated(async () => {
+  await nextTick()
+  enhanceCodeBlocks()
+})
 </script>
 
 <template>
@@ -126,6 +177,27 @@ const extractFilename = (content: string) => {
   padding: 0;
   border-radius: 0;
   font-size: var(--text-xs);
+}
+
+/* Copy button styling */
+.markdown-content :deep(.pre-with-toolbar) {
+  position: relative;
+}
+.markdown-content :deep(.copy-code-btn) {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--color-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.markdown-content :deep(.copy-code-btn:hover) {
+  background: var(--color-hover);
+  border-color: var(--color-accent);
 }
 .markdown-content :deep(blockquote) {
   border-left: 3px solid var(--color-accent);
