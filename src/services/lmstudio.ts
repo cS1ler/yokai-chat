@@ -97,15 +97,25 @@ export class LMStudioService {
 
   async getAvailableModels(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`)
+      const response = await fetch(`${this.baseUrl}${APP_CONFIG.API_ENDPOINTS.MODELS}`, {
+        headers: { Accept: 'application/json' },
+      })
 
       if (!response.ok) {
+        // Treat 404/401 as "no models" to avoid noisy errors during setup
+        if (response.status === 404 || response.status === 401) {
+          return []
+        }
         throw new Error(`HTTP ${response.status}: Failed to fetch models`)
       }
       // Ensure JSON, handle non-JSON gracefully
       const contentType = response.headers.get('content-type') || ''
       if (!contentType.includes('application/json')) {
-        console.warn('Models endpoint did not return JSON')
+        // Avoid noisy warnings in UI; surface as empty list
+        console.debug(
+          'Models endpoint did not return JSON',
+          { status: response.status, contentType },
+        )
         return []
       }
       const data: { data: LMStudioModel[] } = await response.json()
@@ -224,6 +234,7 @@ export async function sendMessageStream(
   onChunk: (chunk: string) => void,
   chatHistory?: Array<{ role: 'user' | 'assistant' | 'system' | 'developer'; content: string }>,
 ): Promise<void> {
+  console.warn('sendMessageStream legacy export uses default base URL; prefer createLMStudioService')
   return lmStudioService.sendMessageStream(
     message,
     APP_CONFIG.DEFAULT_MODEL,

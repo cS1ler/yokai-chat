@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { lmStudioService } from '@/services/lmstudio'
+import { createLMStudioService } from '@/services/lmstudio'
+import { useChatStore } from '@/stores/chat'
 
 interface ModelInfo {
   name: string
@@ -47,8 +48,11 @@ const isModelInstalled = (modelName: string) => {
 const loadModels = async () => {
   isLoading.value = true
   try {
-    // Load installed models
-    const installed = await lmStudioService.getAvailableModels()
+    // Load installed models using user-provided base URL
+    const chatStore = useChatStore()
+    const baseUrl = (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl || ''
+    const service = createLMStudioService(baseUrl)
+    const installed = await service.getAvailableModels()
     installedModels.value = installed.map((name) => ({
       name,
       size: 0,
