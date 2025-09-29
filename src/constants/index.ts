@@ -42,26 +42,12 @@ export const CONTEXT_TYPES = [
   { value: 'text', label: 'Text Context' },
 ] as const
 
-export const DEFAULT_WELCOME_MESSAGE = `# 👋 Welcome to Yokai Chat!
+export const DEFAULT_WELCOME_MESSAGE = `# Welcome to Yokai Chat
 
-I can now render **markdown** content! Here are some examples:
+Start by typing a message below, or choose a model to begin.
 
-## Code Example
-\`\`\`javascript
-function hello() {
-  console.log("Hello, World!");
-}
-\`\`\`
-
-## Lists
-- Feature 1
-- Feature 2
-- Feature 3
-
-## Links
-Check out [Vue.js](https://vuejs.org) for more info!
-
-Try sending me a message with markdown formatting!`
+- Basic Markdown is supported (bold, code blocks, lists)
+- Use the gear icon to add or load contexts`
 
 export const ERROR_MESSAGES = {
   LMSTUDIO_CONNECTION: '⚠️ Error connecting to LM Studio',
