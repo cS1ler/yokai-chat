@@ -19,7 +19,7 @@ const messageInputRef = ref<{
   setContextItems: (contexts: ContextItem[]) => void
   addContextItem: (context: ContextItem) => void
 }>()
-const messageListRef = ref<HTMLElement>()
+// Scroll target: use the rendered message list container
 
 // Load active contexts on initialization
 chatStore.loadActiveContextsFromStorage()
@@ -27,15 +27,12 @@ chatStore.loadActiveContextsFromStorage()
 // Auto-scroll to bottom when new messages are added
 const scrollToBottom = async (smooth = false) => {
   await nextTick()
-  if (messageListRef.value) {
-    if (smooth) {
-      messageListRef.value.scrollTo({
-        top: messageListRef.value.scrollHeight,
-        behavior: 'smooth',
-      })
-    } else {
-      messageListRef.value.scrollTop = messageListRef.value.scrollHeight
-    }
+  const container = document.querySelector('.message-list-container') as HTMLElement | null
+  if (!container) return
+  if (smooth && 'scrollTo' in container) {
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+  } else {
+    container.scrollTop = container.scrollHeight
   }
 }
 
@@ -218,11 +215,7 @@ async function testLMStudio() {
     </header>
     <div class="chat-container">
       <div class="chat-body">
-        <MessageList
-          ref="messageListRef"
-          :messages="chatStore.messages"
-          :is-typing="chatStore.isTyping"
-        />
+        <MessageList :messages="chatStore.messages" :is-typing="chatStore.isTyping" />
       </div>
     </div>
 

@@ -102,9 +102,14 @@ export class LMStudioService {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: Failed to fetch models`)
       }
-
+      // Ensure JSON, handle non-JSON gracefully
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        console.warn('Models endpoint did not return JSON')
+        return []
+      }
       const data: { data: LMStudioModel[] } = await response.json()
-      return data.data?.map((model: LMStudioModel) => model.id) || []
+      return data?.data?.map((model: LMStudioModel) => model.id) || []
     } catch (error) {
       console.error('Failed to fetch models:', error)
       return []
