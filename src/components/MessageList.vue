@@ -9,16 +9,31 @@ defineProps<{
 }>()
 
 const { parseMarkdown } = useMarkdown()
+
+// Extract filename from context content
+const extractFilename = (content: string) => {
+  // Look for [TYPE] pattern at the beginning
+  const match = content.match(/^\[([^\]]+)\]\s+(.+)/)
+  if (match) {
+    const [, type, title] = match
+    return title.split('\n')[0] // Get first line (filename/title)
+  }
+  return 'Context'
+}
 </script>
 
 <template>
-  <div class="flex-1 overflow-y-auto p-lg flex flex-col gap-md">
+  <div class="message-list-container">
     <div v-for="msg in messages" :key="msg.id" :class="['message', `message-${msg.role}`]">
       <div
         v-if="msg.role === 'assistant'"
         v-html="parseMarkdown(msg.content)"
         class="markdown-content"
       ></div>
+      <div v-else-if="msg.role === 'developer'" class="developer-context-indicator">
+        <span class="context-filename">{{ extractFilename(msg.content) }}</span>
+        <span class="context-label">context</span>
+      </div>
       <span v-else>{{ msg.content }}</span>
     </div>
 
@@ -28,25 +43,40 @@ const { parseMarkdown } = useMarkdown()
 </template>
 
 <style scoped>
-/* Utility classes */
-.flex-1 {
+/* Message list container with proper scrolling */
+.message-list-container {
   flex: 1;
-}
-.overflow-y-auto {
   overflow-y: auto;
-}
-.p-lg {
-  padding: var(--space-lg);
-}
-.flex {
+  padding: var(--space-6);
+  padding-bottom: calc(var(--space-6) + 2rem); /* Extra bottom padding to prevent input overlap */
   display: flex;
-}
-.flex-col {
   flex-direction: column;
+  gap: var(--space-4);
+  height: 100%;
+  max-height: 100%;
+  scroll-behavior: smooth;
 }
-.gap-md {
-  gap: var(--space-md);
+
+/* Custom scrollbar styling */
+.message-list-container::-webkit-scrollbar {
+  width: 8px;
 }
+
+.message-list-container::-webkit-scrollbar-track {
+  background: var(--color-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.message-list-container::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.message-list-container::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
+/* Utility classes removed - now using global classes */
 
 /* Markdown content styling */
 .markdown-content {
@@ -59,71 +89,71 @@ const { parseMarkdown } = useMarkdown()
 .markdown-content :deep(h4),
 .markdown-content :deep(h5),
 .markdown-content :deep(h6) {
-  margin: var(--space-lg) 0 var(--space-sm) 0;
-  color: var(--text-primary);
+  margin: var(--space-6) 0 var(--space-2) 0;
+  color: var(--color-text-primary);
   font-weight: 600;
 }
 
 .markdown-content :deep(h1) {
-  font-size: 1.25rem;
+  font-size: var(--text-xl);
 }
 .markdown-content :deep(h2) {
-  font-size: 1.1rem;
+  font-size: var(--text-lg);
 }
 .markdown-content :deep(h3) {
-  font-size: 1rem;
+  font-size: var(--text-base);
 }
 .markdown-content :deep(p) {
-  margin: var(--space-sm) 0;
+  margin: var(--space-2) 0;
 }
 .markdown-content :deep(code) {
   background: rgba(255, 255, 255, 0.1);
-  padding: var(--space-xs) var(--space-sm);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
+  font-family: var(--font-family-mono);
   font-size: 0.9em;
 }
 .markdown-content :deep(pre) {
-  background: var(--bg-primary);
-  padding: var(--space-lg);
+  background: var(--color-primary);
+  padding: var(--space-6);
   border-radius: var(--radius-md);
   overflow-x: auto;
-  margin: var(--space-md) 0;
+  margin: var(--space-4) 0;
   border-left: 3px solid var(--color-accent);
 }
 .markdown-content :deep(pre code) {
   background: none;
   padding: 0;
   border-radius: 0;
-  font-size: 0.85rem;
+  font-size: var(--text-xs);
 }
 .markdown-content :deep(blockquote) {
   border-left: 3px solid var(--color-accent);
-  padding-left: var(--space-lg);
-  margin: var(--space-md) 0;
+  padding-left: var(--space-6);
+  margin: var(--space-4) 0;
   opacity: 0.9;
 }
 .markdown-content :deep(ul),
 .markdown-content :deep(ol) {
-  margin: var(--space-sm) 0;
+  margin: var(--space-2) 0;
   padding-left: 1.5rem;
 }
 .markdown-content :deep(li) {
-  margin: var(--space-xs) 0;
+  margin: var(--space-1) 0;
 }
 .markdown-content :deep(table) {
   border-collapse: collapse;
   width: 100%;
-  margin: var(--space-md) 0;
+  margin: var(--space-4) 0;
 }
 .markdown-content :deep(th),
 .markdown-content :deep(td) {
   border: 1px solid var(--color-border);
-  padding: var(--space-sm);
+  padding: var(--space-2);
   text-align: left;
 }
 .markdown-content :deep(th) {
-  background: var(--bg-tertiary);
+  background: var(--color-tertiary);
   font-weight: 600;
 }
 .markdown-content :deep(a) {
@@ -136,6 +166,49 @@ const { parseMarkdown } = useMarkdown()
 .markdown-content :deep(hr) {
   border: none;
   border-top: 1px solid var(--color-border);
-  margin: var(--space-lg) 0;
+  margin: var(--space-6) 0;
+}
+
+/* Developer role message styling - compact context indicator */
+.message-developer {
+  align-self: flex-start;
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent-glow);
+  max-width: 60%;
+  font-size: var(--text-xs);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+}
+
+.developer-context-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.context-filename {
+  color: var(--color-accent);
+  font-weight: 600;
+  font-family: var(--font-family-mono);
+  font-size: var(--text-xs);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-label {
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--color-accent-glow);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
 }
 </style>

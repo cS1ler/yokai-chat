@@ -21,6 +21,7 @@ export const useChatStore = defineStore('chat', () => {
   const abortController = ref<AbortController | null>(null)
   const savedContexts = ref<ContextItem[]>([])
   const selectedContextIds = ref<string[]>([])
+  const activeContextIds = ref<string[]>([]) // Contexts that are currently active/loaded
   const availableModels = ref<string[]>([])
   const isLoadingModels = ref(false)
 
@@ -38,6 +39,11 @@ export const useChatStore = defineStore('chat', () => {
   })
 
   const messageCount = computed(() => messages.value.length)
+
+  // Get last N messages for AI memory
+  const getLastMessages = (count: number = 10) => {
+    return messages.value.slice(-count)
+  }
 
   // Actions
   const addMessage = (message: Message) => {
@@ -134,8 +140,48 @@ export const useChatStore = defineStore('chat', () => {
     return savedContexts.value.filter((c) => selectedContextIds.value.includes(c.id))
   }
 
+  const getActiveContexts = () => {
+    return savedContexts.value.filter((c) => activeContextIds.value.includes(c.id))
+  }
+
   const clearSelectedContexts = () => {
     selectedContextIds.value = []
+  }
+
+  const setActiveContexts = (contextIds: string[]) => {
+    activeContextIds.value = contextIds
+    // Persist active contexts to localStorage
+    try {
+      localStorage.setItem('yokai-chat-active-contexts', JSON.stringify(contextIds))
+    } catch (error) {
+      console.warn('Failed to save active contexts to localStorage:', error)
+    }
+  }
+
+  const loadActiveContextsFromStorage = () => {
+    try {
+      const stored = localStorage.getItem('yokai-chat-active-contexts')
+      if (stored) {
+        activeContextIds.value = JSON.parse(stored)
+      }
+    } catch (error) {
+      console.warn('Failed to load active contexts from localStorage:', error)
+    }
+  }
+
+  const toggleActiveContext = (id: string) => {
+    const index = activeContextIds.value.indexOf(id)
+    if (index >= 0) {
+      activeContextIds.value.splice(index, 1)
+    } else {
+      activeContextIds.value.push(id)
+    }
+    setActiveContexts(activeContextIds.value)
+  }
+
+  const clearActiveContexts = () => {
+    activeContextIds.value = []
+    setActiveContexts([])
   }
 
   // Persistence
@@ -235,6 +281,7 @@ export const useChatStore = defineStore('chat', () => {
     error,
     savedContexts,
     selectedContextIds,
+    activeContextIds,
     availableModels,
     isLoadingModels,
 
@@ -242,6 +289,7 @@ export const useChatStore = defineStore('chat', () => {
     chatState,
     lastMessage,
     messageCount,
+    getLastMessages,
 
     // Actions
     addMessage,
@@ -265,7 +313,12 @@ export const useChatStore = defineStore('chat', () => {
     deleteContext,
     toggleContextSelection,
     getSelectedContexts,
+    getActiveContexts,
     clearSelectedContexts,
+    setActiveContexts,
+    toggleActiveContext,
+    clearActiveContexts,
+    loadActiveContextsFromStorage,
     loadContextsFromStorage,
 
     // Helpers

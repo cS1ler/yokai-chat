@@ -2,9 +2,13 @@
 import { ref } from 'vue'
 import type { ContextItem } from '@/types/chat'
 import { useChatStore } from '@/stores/chat'
+import { useModal } from '@/composables/useModal'
+import BaseModal from './shared/BaseModal.vue'
+import BaseButton from './shared/BaseButton.vue'
+import { truncateText } from '@/utils/string'
 
 const chatStore = useChatStore()
-const showManager = ref(false)
+const { isOpen: showManager, open: openManager, close: closeManager } = useModal()
 
 const emit = defineEmits<{
   close: []
@@ -15,8 +19,16 @@ const isSelected = (id: string) => {
   return chatStore.selectedContextIds.includes(id)
 }
 
+const isActive = (id: string) => {
+  return chatStore.activeContextIds.includes(id)
+}
+
 const toggleSelection = (id: string) => {
   chatStore.toggleContextSelection(id)
+}
+
+const toggleActive = (id: string) => {
+  chatStore.toggleActiveContext(id)
 }
 
 const handleSelect = () => {
@@ -29,12 +41,8 @@ const handleDelete = (id: string) => {
   chatStore.deleteContext(id)
 }
 
-const openManager = () => {
-  showManager.value = true
-}
-
-const closeManager = () => {
-  showManager.value = false
+const handleClose = () => {
+  closeManager()
   emit('close')
 }
 
@@ -44,235 +52,99 @@ defineExpose({
 </script>
 
 <template>
-  <div v-if="showManager" class="modal-overlay">
-    <div
-      class="bg-primary border border-border rounded-lg p-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
-    >
-      <div class="flex items-center justify-between mb-md">
-        <h2 class="text-xl font-semibold">Saved Contexts</h2>
-        <button @click="closeManager" class="btn-icon text-muted hover:text-accent">×</button>
-      </div>
+  <BaseModal :is-open="showManager" title="Saved Contexts" size="xl" @close="handleClose">
+    <div v-if="chatStore.savedContexts.length === 0" class="text-center text-muted py-lg">
+      No saved contexts yet. Add some context items to save them here.
+    </div>
 
-      <div class="flex-1 overflow-y-auto mb-md">
-        <div v-if="chatStore.savedContexts.length === 0" class="text-center text-muted py-lg">
-          No saved contexts yet. Add some context items to save them here.
-        </div>
-
-        <div v-else class="space-y-sm">
-          <div
-            v-for="context in chatStore.savedContexts"
-            :key="context.id"
-            class="card cursor-pointer transition-colors"
-            :class="{ 'ring-2 ring-accent': isSelected(context.id) }"
-            @click="toggleSelection(context.id)"
-          >
-            <div class="flex items-center gap-sm mb-sm">
-              <input
-                type="checkbox"
-                :checked="isSelected(context.id)"
-                @click.stop="toggleSelection(context.id)"
-                class="checkbox"
-              />
-              <span class="badge badge-primary">{{ context.type }}</span>
-              <span class="font-semibold flex-1">{{ context.title }}</span>
-              <button
-                @click.stop="handleDelete(context.id)"
-                class="btn-icon text-red-400 hover:text-red-300"
-                title="Delete context"
-              >
-                🗑️
-              </button>
-            </div>
-            <div class="text-muted text-sm font-mono">
-              {{ context.content.substring(0, 100) }}
-              {{ context.content.length > 100 ? '...' : '' }}
-            </div>
+    <div v-else class="space-y-sm">
+      <div
+        v-for="context in chatStore.savedContexts"
+        :key="context.id"
+        class="card cursor-pointer transition-colors"
+        :class="{
+          'ring-2 ring-accent': isSelected(context.id) || isActive(context.id),
+        }"
+        @click="toggleSelection(context.id)"
+      >
+        <div class="flex items-center gap-sm mb-sm">
+          <input
+            type="checkbox"
+            :checked="isSelected(context.id)"
+            @click.stop="toggleSelection(context.id)"
+            class="checkbox"
+          />
+          <span class="badge badge-primary">{{ context.type }}</span>
+          <span class="font-semibold flex-1">{{ context.title }}</span>
+          <div class="flex items-center gap-xs">
+            <BaseButton
+              variant="icon"
+              size="sm"
+              @click.stop="toggleActive(context.id)"
+              :class="{
+                'bg-accent text-primary': isActive(context.id),
+                'text-muted hover:text-accent': !isActive(context.id),
+              }"
+              :title="isActive(context.id) ? 'Deactivate context' : 'Activate context'"
+            >
+              {{ isActive(context.id) ? '⚡' : '⚪' }}
+            </BaseButton>
+            <BaseButton
+              variant="icon"
+              size="sm"
+              @click.stop="handleDelete(context.id)"
+              class="text-error hover:text-red-300"
+              title="Delete context"
+            >
+              🗑️
+            </BaseButton>
           </div>
         </div>
-      </div>
-
-      <div class="flex gap-sm justify-end">
-        <button @click="closeManager" class="btn btn-secondary">Cancel</button>
-        <button
-          @click="handleSelect"
-          class="btn btn-primary"
-          :disabled="chatStore.selectedContextIds.length === 0"
-        >
-          Select ({{ chatStore.selectedContextIds.length }})
-        </button>
+        <div class="text-muted text-sm font-mono">
+          {{ truncateText(context.content, 100) }}
+        </div>
+        <div v-if="isActive(context.id)" class="mt-sm text-xs text-accent font-semibold">
+          ⚡ ACTIVE - Will be sent with developer role
+        </div>
       </div>
     </div>
-  </div>
+
+    <template #footer>
+      <BaseButton variant="secondary" @click="handleClose">Cancel</BaseButton>
+      <BaseButton
+        variant="primary"
+        @click="handleSelect"
+        :disabled="chatStore.selectedContextIds.length === 0"
+      >
+        Select ({{ chatStore.selectedContextIds.length }})
+      </BaseButton>
+    </template>
+  </BaseModal>
 </template>
 
 <style scoped>
-/* Utility classes */
-.fixed {
-  position: fixed;
-}
-.inset-0 {
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-}
-.bg-black {
-  background-color: #000;
-}
-.bg-opacity-50 {
-  background-color: rgba(0, 0, 0, 0.5);
-}
-.flex {
-  display: flex;
-}
-.items-center {
-  align-items: center;
-}
-.justify-center {
-  justify-content: center;
-}
-.justify-between {
-  justify-content: space-between;
-}
-.justify-end {
-  justify-content: flex-end;
-}
-.z-50 {
-  z-index: 50;
-}
-.z-\[100\] {
-  z-index: 100;
-}
-.bg-primary {
-  background: var(--bg-primary);
-}
-.border {
-  border: 1px solid var(--color-border);
-}
-.border-border {
-  border-color: var(--color-border);
-}
-.rounded-lg {
-  border-radius: 0.5rem;
-}
-.p-lg {
-  padding: var(--space-lg);
-}
-.max-w-2xl {
-  max-width: 42rem;
-}
-.w-full {
-  width: 100%;
-}
-.max-h-\[80vh\] {
-  max-height: 80vh;
-}
-.overflow-hidden {
-  overflow: hidden;
-}
-.overflow-y-auto {
-  overflow-y: auto;
-}
-.flex-col {
-  flex-direction: column;
-}
-.mb-md {
-  margin-bottom: var(--space-md);
-}
-.mb-sm {
-  margin-bottom: var(--space-sm);
-}
-.text-xl {
-  font-size: 1.25rem;
-}
-.font-semibold {
-  font-weight: 600;
-}
-.text-center {
-  text-align: center;
-}
-.text-muted {
-  color: var(--text-secondary);
-}
-.text-sm {
-  font-size: 0.85rem;
-}
-.font-mono {
-  font-family: var(--font-mono);
-}
-.text-red-400 {
-  color: var(--accent-red);
-}
-.hover\:text-red-300:hover {
-  color: #f87171;
-}
-.hover\:text-accent:hover {
-  color: var(--accent);
-}
-.py-lg {
-  padding-top: var(--space-lg);
-  padding-bottom: var(--space-lg);
-}
-.space-y-sm > * + * {
-  margin-top: var(--space-sm);
-}
-.cursor-pointer {
-  cursor: pointer;
-}
-.transition-colors {
-  transition: colors 0.2s;
-}
-.ring-2 {
-  box-shadow: 0 0 0 2px var(--accent);
-}
-.ring-accent {
-  --tw-ring-color: var(--accent);
-}
-.gap-sm {
-  gap: var(--space-sm);
-}
-.flex-1 {
-  flex: 1;
-}
+/* Component-specific styles only - utility classes now global */
 .checkbox {
   width: 1.25rem;
   height: 1.25rem;
-  accent-color: var(--neon-green);
+  accent-color: var(--color-accent);
   cursor: pointer;
-  border-radius: 4px;
-  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  background: var(--color-secondary);
   border: 1px solid var(--color-border);
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 .checkbox:hover {
-  border-color: var(--neon-green);
-  box-shadow: 0 0 8px rgba(0, 255, 0, 0.2);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent-glow);
 }
 
 .checkbox:checked {
-  background: var(--neon-green);
-  border-color: var(--neon-green);
-  box-shadow: 0 0 12px var(--neon-green-glow);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 12px var(--color-accent-glow);
 }
 
-/* Modal overlay with explicit positioning */
-.modal-overlay {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  background-color: rgba(0, 0, 0, 0.5) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  z-index: 1000 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
+/* Modal overlay - now uses global modal-overlay class */
 </style>

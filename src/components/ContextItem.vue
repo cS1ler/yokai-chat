@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { ContextItem } from '@/types/chat'
 import { APP_CONFIG } from '@/constants'
+import { truncateText } from '@/utils/string'
+import BaseButton from './shared/BaseButton.vue'
 
 defineProps<{
   context: ContextItem
@@ -20,17 +22,17 @@ const handleRemove = (id: string) => {
     <div class="flex items-center gap-sm mb-sm">
       <span class="badge badge-primary">{{ context.type }}</span>
       <span class="font-semibold flex-1">{{ context.title }}</span>
-      <button
-        type="button"
+      <BaseButton
+        variant="icon"
+        size="sm"
         @click="handleRemove(context.id)"
-        class="btn-icon text-red-400 hover:text-red-300"
+        class="text-error hover:text-red-300"
       >
         ×
-      </button>
+      </BaseButton>
     </div>
     <div class="text-muted text-sm font-mono">
-      {{ context.content.substring(0, APP_CONFIG.MESSAGE_LIMITS.MAX_CONTEXT_PREVIEW) }}
-      {{ context.content.length > APP_CONFIG.MESSAGE_LIMITS.MAX_CONTEXT_PREVIEW ? '...' : '' }}
+      {{ truncateText(context.content, APP_CONFIG.MESSAGE_LIMITS.MAX_CONTEXT_PREVIEW) }}
     </div>
   </div>
 </template>

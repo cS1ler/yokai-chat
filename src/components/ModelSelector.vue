@@ -1,54 +1,55 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useChatStore } from '@/stores/chat'
+import { useModal } from '@/composables/useModal'
+import { useClickOutside } from '@/composables/useModal'
+import { useLoading } from '@/composables/useLoading'
+import LoadingSpinner from './shared/LoadingSpinner.vue'
+import BaseButton from './shared/BaseButton.vue'
 
 const chatStore = useChatStore()
-const isOpen = ref(false)
+const { isOpen, open: openDropdown, close: closeDropdown } = useModal()
 const dropdownRef = ref<HTMLDivElement>()
+const { isLoading: isLoadingModels, withLoading } = useLoading()
 
 const currentModel = computed(() => chatStore.currentModel)
 const availableModels = computed(() => chatStore.availableModels)
-const isLoadingModels = computed(() => chatStore.isLoadingModels)
 
 // Load models on mount
 onMounted(async () => {
   await chatStore.loadCurrentModelFromStorage()
-  await chatStore.loadAvailableModels()
+  await withLoading(() => chatStore.loadAvailableModels())
 })
 
 // Close dropdown when clicking outside
-const handleClickOutside = (event: MouseEvent) => {
-  if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
-    isOpen.value = false
-  }
-}
-
-// Watch for outside clicks
-watch(isOpen, (open) => {
-  if (open) {
-    document.addEventListener('click', handleClickOutside)
-  } else {
-    document.removeEventListener('click', handleClickOutside)
-  }
-})
+useClickOutside(dropdownRef as any, closeDropdown)
 
 const toggleDropdown = () => {
-  isOpen.value = !isOpen.value
+  if (isOpen.value) {
+    closeDropdown()
+  } else {
+    openDropdown()
+  }
 }
 
 const selectModel = (model: string) => {
   chatStore.setCurrentModel(model)
-  isOpen.value = false
+  closeDropdown()
 }
 
 const refreshModels = async () => {
-  await chatStore.loadAvailableModels()
+  await withLoading(() => chatStore.loadAvailableModels())
 }
 </script>
 
 <template>
   <div class="model-selector" ref="dropdownRef">
-    <button @click="toggleDropdown" class="model-selector-button" :disabled="isLoadingModels">
+    <BaseButton
+      variant="secondary"
+      @click="toggleDropdown"
+      :disabled="isLoadingModels"
+      class="model-selector-button"
+    >
       <span class="model-name">{{ currentModel }}</span>
       <svg
         class="dropdown-icon"
@@ -62,20 +63,20 @@ const refreshModels = async () => {
       >
         <polyline points="6,9 12,15 18,9"></polyline>
       </svg>
-    </button>
+    </BaseButton>
 
     <div v-if="isOpen" class="model-dropdown">
       <div class="dropdown-header">
         <span class="dropdown-title">Select Model</span>
-        <button
+        <BaseButton
+          variant="icon"
+          size="sm"
           @click="refreshModels"
-          class="refresh-button"
-          :disabled="isLoadingModels"
+          :loading="isLoadingModels"
           title="Refresh models"
         >
           <svg
             class="refresh-icon"
-            :class="{ spinning: isLoadingModels }"
             width="16"
             height="16"
             viewBox="0 0 24 24"
@@ -87,17 +88,17 @@ const refreshModels = async () => {
             <polyline points="1,20 1,14 7,14"></polyline>
             <path d="M20.49,9A9,9,0,0,0,5.64,5.64L1,10m22,4L18.36,18.36A9,9,0,0,1,3.51,15"></path>
           </svg>
-        </button>
+        </BaseButton>
       </div>
 
       <div v-if="isLoadingModels" class="loading-state">
-        <div class="loading-spinner"></div>
+        <LoadingSpinner size="sm" />
         <span>Loading models...</span>
       </div>
 
       <div v-else-if="availableModels.length === 0" class="empty-state">
         <span>No models available</span>
-        <button @click="refreshModels" class="retry-button">Try Again</button>
+        <BaseButton variant="primary" size="sm" @click="refreshModels">Try Again</BaseButton>
       </div>
 
       <div v-else class="model-list">
@@ -136,21 +137,21 @@ const refreshModels = async () => {
 .model-selector-button {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   background: var(--color-header);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  color: var(--color-text);
-  font-size: 0.9rem;
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
   min-width: 200px;
 }
 
 .model-selector-button:hover:not(:disabled) {
   background: var(--color-hover);
-  border-color: var(--neon-green);
+  border-color: var(--color-accent);
 }
 
 .model-selector-button:disabled {
@@ -167,7 +168,7 @@ const refreshModels = async () => {
 }
 
 .dropdown-icon {
-  transition: transform 0.2s ease;
+  transition: transform var(--transition-fast);
   flex-shrink: 0;
 }
 
@@ -180,12 +181,12 @@ const refreshModels = async () => {
   top: 100%;
   left: 0;
   right: 0;
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
   background: var(--color-header);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  z-index: var(--z-dropdown);
   overflow: hidden;
 }
 
@@ -193,31 +194,31 @@ const refreshModels = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 1rem;
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
-  background: var(--bg-secondary);
+  background: var(--color-secondary);
 }
 
 .dropdown-title {
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--color-text-primary);
 }
 
 .refresh-button {
   display: flex;
   align-items: center;
-  padding: 0.25rem;
+  padding: var(--space-1);
   background: transparent;
   border: none;
-  color: var(--color-text);
+  color: var(--color-text-primary);
   cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
 }
 
 .refresh-button:hover:not(:disabled) {
   background: var(--color-hover);
-  color: var(--neon-green);
+  color: var(--color-accent);
 }
 
 .refresh-button:disabled {
@@ -226,7 +227,7 @@ const refreshModels = async () => {
 }
 
 .refresh-icon {
-  transition: transform 0.2s ease;
+  transition: transform var(--transition-fast);
 }
 
 .refresh-icon.spinning {
@@ -245,8 +246,8 @@ const refreshModels = async () => {
 .loading-state {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
+  gap: var(--space-2);
+  padding: var(--space-4);
   color: var(--color-text-muted);
   justify-content: center;
 }
@@ -255,7 +256,7 @@ const refreshModels = async () => {
   width: 16px;
   height: 16px;
   border: 2px solid var(--color-border);
-  border-top: 2px solid var(--neon-green);
+  border-top: 2px solid var(--color-accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -264,24 +265,24 @@ const refreshModels = async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
+  gap: var(--space-2);
+  padding: var(--space-4);
   color: var(--color-text-muted);
 }
 
 .retry-button {
-  padding: 0.5rem 1rem;
-  background: var(--neon-green);
-  color: var(--bg-primary);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent);
+  color: var(--color-primary);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 0.8rem;
-  transition: all 0.2s ease;
+  font-size: var(--text-xs);
+  transition: all var(--transition-fast);
 }
 
 .retry-button:hover {
-  background: var(--neon-green-glow);
+  background: var(--color-accent-glow);
 }
 
 .model-list {
@@ -294,12 +295,12 @@ const refreshModels = async () => {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: var(--space-3) var(--space-4);
   background: transparent;
   border: none;
-  color: var(--color-text);
+  color: var(--color-text-primary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
   text-align: left;
 }
 
@@ -308,8 +309,8 @@ const refreshModels = async () => {
 }
 
 .model-option.selected {
-  background: var(--neon-green);
-  color: var(--bg-primary);
+  background: var(--color-accent);
+  color: var(--color-primary);
 }
 
 .check-icon {
@@ -322,7 +323,7 @@ const refreshModels = async () => {
 }
 
 .model-list::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
+  background: var(--color-secondary);
 }
 
 .model-list::-webkit-scrollbar-thumb {
@@ -331,6 +332,6 @@ const refreshModels = async () => {
 }
 
 .model-list::-webkit-scrollbar-thumb:hover {
-  background: var(--neon-green);
+  background: var(--color-accent);
 }
 </style>

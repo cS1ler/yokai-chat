@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick, watch } from 'vue'
 import MessageList from '@/components/MessageList.vue'
 import MessageInput from '@/components/MessageInput.vue'
 import ModelSelector from '@/components/ModelSelector.vue'
 import ContextManager from '@/components/ContextManager.vue'
+import ContextForm from '@/components/ContextForm.vue'
 import { useChatStore } from '@/stores/chat'
 import { lmStudioService } from '@/services/lmstudio'
 import { useMarkdown } from '@/composables/useMarkdown'
@@ -13,11 +14,89 @@ import type { ContextItem } from '@/types/chat'
 const chatStore = useChatStore()
 const { formatMessageWithContext } = useMarkdown()
 const contextManagerRef = ref<InstanceType<typeof ContextManager>>()
-const messageInputRef = ref<{ setContextItems: (contexts: ContextItem[]) => void }>()
+const contextFormRef = ref<InstanceType<typeof ContextForm>>()
+const messageInputRef = ref<{
+  setContextItems: (contexts: ContextItem[]) => void
+  addContextItem: (context: ContextItem) => void
+}>()
+const messageListRef = ref<HTMLElement>()
+
+// Load active contexts on initialization
+chatStore.loadActiveContextsFromStorage()
+
+// Auto-scroll to bottom when new messages are added
+const scrollToBottom = async (smooth = false) => {
+  await nextTick()
+  if (messageListRef.value) {
+    if (smooth) {
+      messageListRef.value.scrollTo({
+        top: messageListRef.value.scrollHeight,
+        behavior: 'smooth',
+      })
+    } else {
+      messageListRef.value.scrollTop = messageListRef.value.scrollHeight
+    }
+  }
+}
+
+// Watch for new messages and scroll to bottom
+watch(
+  () => chatStore.messages.length,
+  () => {
+    scrollToBottom(true) // Smooth scroll for new messages
+  },
+  { flush: 'post' },
+)
+
+// Watch for typing indicator changes
+watch(
+  () => chatStore.isTyping,
+  () => {
+    scrollToBottom(true) // Smooth scroll for typing indicator
+  },
+  { flush: 'post' },
+)
+
+// Watch for streaming updates to scroll during streaming
+watch(
+  () => chatStore.isStreaming,
+  (isStreaming) => {
+    if (isStreaming) {
+      // Scroll immediately when streaming starts
+      scrollToBottom(false)
+    }
+  },
+)
+
+// Watch for message content updates during streaming
+watch(
+  () => chatStore.messages,
+  () => {
+    if (chatStore.isStreaming) {
+      // Scroll to bottom during streaming to follow the response
+      scrollToBottom(false)
+    }
+  },
+  { deep: true, flush: 'post' },
+)
 
 async function handleSend(content: string, context?: ContextItem[]) {
   // Add user message (only the text, not the context)
   chatStore.createUserMessage(content)
+
+  // Add active contexts as developer messages if any are active
+  const activeContexts = chatStore.getActiveContexts()
+  if (activeContexts.length > 0) {
+    activeContexts.forEach((ctx) => {
+      const developerMessage = {
+        id: Date.now() + Math.random(),
+        role: 'developer' as const,
+        content: `[${ctx.type.toUpperCase()}] ${ctx.title}\n\n${ctx.content}`,
+        timestamp: new Date(),
+      }
+      chatStore.addMessage(developerMessage)
+    })
+  }
 
   // Create placeholder for assistant response
   const assistantMessage = chatStore.createAssistantMessage()
@@ -35,6 +114,15 @@ async function handleSend(content: string, context?: ContextItem[]) {
   const fullMessage =
     context && context.length > 0 ? formatMessageWithContext(content, context) : content
 
+  // Get last 10 messages for AI memory (excluding the current user message and assistant placeholder)
+  const chatHistory = chatStore
+    .getLastMessages(10)
+    .filter((msg) => msg.id !== assistantMessage.id) // Exclude the current assistant message placeholder
+    .map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }))
+
   try {
     await lmStudioService.sendMessageStream(
       fullMessage,
@@ -51,6 +139,7 @@ async function handleSend(content: string, context?: ContextItem[]) {
         chatStore.setError(error)
       },
       abortController,
+      chatHistory,
     )
   } catch (error) {
     // Don't show error if it was aborted
@@ -72,12 +161,30 @@ function handleStop() {
 }
 
 function handleContextSelection(selectedContexts: ContextItem[]) {
+  // Set the selected contexts as active contexts
+  const contextIds = selectedContexts.map((ctx) => ctx.id)
+  chatStore.setActiveContexts(contextIds)
+
   // Pass the selected contexts to MessageInput component
   messageInputRef.value?.setContextItems(selectedContexts)
 }
 
 function openContextManager() {
   contextManagerRef.value?.openManager()
+}
+
+function openContextForm() {
+  contextFormRef.value?.openForm()
+}
+
+function handleContextAdd(context: ContextItem) {
+  // Pass the context to MessageInput component
+  messageInputRef.value?.addContextItem(context)
+}
+
+function handleContextSave(context: ContextItem) {
+  // Save context to store
+  chatStore.saveContext(context)
 }
 
 async function testLMStudio() {
@@ -102,6 +209,7 @@ async function testLMStudio() {
       <div class="header-content">
         <h1 class="app-title">Yokai Chat</h1>
         <div class="header-controls">
+          <router-link to="/" class="btn btn-secondary modern-btn">← Landing</router-link>
           <ModelSelector />
           <router-link to="/models" class="btn btn-secondary modern-btn">📦 Models</router-link>
           <button @click="testLMStudio" class="btn btn-primary modern-btn">Test LM Studio</button>
@@ -110,7 +218,11 @@ async function testLMStudio() {
     </header>
     <div class="chat-container">
       <div class="chat-body">
-        <MessageList :messages="chatStore.messages" :is-typing="chatStore.isTyping" />
+        <MessageList
+          ref="messageListRef"
+          :messages="chatStore.messages"
+          :is-typing="chatStore.isTyping"
+        />
       </div>
     </div>
 
@@ -122,105 +234,38 @@ async function testLMStudio() {
         @send="handleSend"
         @stop="handleStop"
         @open-context-manager="openContextManager"
+        @open-context-form="openContextForm"
       />
     </div>
 
     <!-- Context Manager Modal - moved to top level -->
     <ContextManager ref="contextManagerRef" @select="handleContextSelection" @close="() => {}" />
+
+    <!-- Context Form Modal - moved to top level -->
+    <ContextForm
+      ref="contextFormRef"
+      @add="handleContextAdd"
+      @save="handleContextSave"
+      @cancel="() => {}"
+    />
   </div>
 </template>
 
 <style scoped>
-/* Additional utility classes for layout */
-.h-screen {
-  height: 100vh;
-}
-.flex-1 {
-  flex: 1;
-}
-.sticky {
-  position: sticky;
-}
-.top-0 {
-  top: 0;
-}
-.bg-primary {
-  background: var(--bg-primary);
-}
-.bg-secondary {
-  background: var(--bg-secondary);
-}
-.border-l {
-  border-left: 1px solid var(--color-border);
-}
-.border-r {
-  border-right: 1px solid var(--color-border);
-}
-.border-b {
-  border-bottom: 1px solid var(--color-border);
-}
-.border-border {
-  border-color: var(--color-border);
-}
-.p-md {
-  padding: var(--space-md);
-}
-.text-center {
-  text-align: center;
-}
-.font-semibold {
-  font-weight: 600;
-}
-.text-lg {
-  font-size: 1.1rem;
-}
-.text-sm {
-  font-size: 0.9rem;
-}
-.w-full {
-  width: 100%;
-}
-.max-w-7xl {
-  max-width: 80rem;
-}
-.mx-auto {
-  margin-left: auto;
-  margin-right: auto;
-}
-.px-4 {
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-.px-2 {
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
-}
-.header-compact {
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-}
-.w-20 {
-  width: 5rem;
-}
-.flex-1 {
-  flex: 1;
-}
-.justify-end {
-  justify-content: flex-end;
-}
+/* Component-specific styles only */
 
 /* Modern Layout Styles */
 .modern-layout {
-  background: linear-gradient(135deg, var(--bg-primary) 0%, #0f0f0f 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #0f0f0f 100%);
 }
 
 .modern-header {
   background: var(--color-header);
   border-bottom: 1px solid var(--color-border);
-  padding: 1rem 2rem;
+  padding: var(--space-4) var(--space-8);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: var(--z-dropdown);
   backdrop-filter: blur(10px);
 }
 
@@ -235,42 +280,44 @@ async function testLMStudio() {
 .header-controls {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .app-title {
-  color: var(--neon-green);
-  font-size: 1.5rem;
+  color: var(--color-accent);
+  font-size: var(--text-2xl);
   font-weight: 700;
-  text-shadow: 0 0 10px var(--neon-green-glow);
+  text-shadow: 0 0 10px var(--color-accent-glow);
   margin: 0;
 }
 
 .modern-btn {
-  padding: 0.75rem 1.5rem;
-  font-size: 0.9rem;
-  border-radius: 8px;
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-md);
 }
 
 .chat-container {
   flex: 1;
   display: flex;
   justify-content: center;
-  padding: 2rem 2rem 0 2rem; /* Remove bottom padding to make room for fixed input */
-  margin-bottom: 120px; /* Add space for the fixed input */
+  padding: var(--space-8) var(--space-8) 0 var(--space-8);
+  padding-bottom: 180px; /* Increased padding to account for fixed input */
+  min-height: 0; /* Allow flex item to shrink */
 }
 
 .chat-body {
   width: 100%;
   max-width: 1200px;
-  background: var(--color-chat-body);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-xl);
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: calc(100vh - 280px); /* Adjusted height to account for header and input */
+  max-height: calc(100vh - 280px);
 }
 
 .fixed-input-container {
@@ -278,16 +325,20 @@ async function testLMStudio() {
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--color-chat-body);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
   backdrop-filter: blur(10px);
-  z-index: 100;
-  padding: var(--space-lg) 2rem;
+  z-index: var(--z-dropdown);
+  padding: var(--space-6) var(--space-8);
+  padding-bottom: calc(
+    var(--space-6) + env(safe-area-inset-bottom, 0px)
+  ); /* Account for mobile safe area */
   max-width: 1200px;
   margin: 0 auto;
-  border-radius: 16px 16px 0 0;
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: var(--shadow-xl);
+  min-height: 80px; /* Ensure minimum height */
 }
 </style>

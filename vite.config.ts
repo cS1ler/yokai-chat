@@ -10,6 +10,17 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./vitest.setup.ts'],
+    css: true,
+    exclude: ['node_modules', 'dist', '.{idea,git,cache,output,temp}', 'tests-e2e/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+    },
+  },
   server: {
     proxy: {
       '/api/lmstudio': {

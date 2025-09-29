@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import LoadingSpinner from './shared/LoadingSpinner.vue'
+
 defineProps<{
   message?: string
 }>()
@@ -7,40 +9,16 @@ defineProps<{
 <template>
   <div class="message message-assistant flex items-center gap-md min-h-48">
     <div class="flex gap-xs">
-      <div class="spinner-dot"></div>
-      <div class="spinner-dot"></div>
-      <div class="spinner-dot"></div>
+      <LoadingSpinner size="sm" class="animate-typing" />
+      <LoadingSpinner size="sm" class="animate-typing" style="animation-delay: -0.16s" />
+      <LoadingSpinner size="sm" class="animate-typing" style="animation-delay: 0s" />
     </div>
     <span class="text-muted text-sm italic">{{ message || 'Yokai is thinking...' }}</span>
   </div>
 </template>
 
 <style scoped>
-/* Utility classes */
-.flex {
-  display: flex;
-}
-.items-center {
-  align-items: center;
-}
-.gap-xs {
-  gap: 4px;
-}
-.gap-md {
-  gap: var(--space-md);
-}
-.min-h-48 {
-  min-height: 48px;
-}
-.text-muted {
-  color: var(--text-secondary);
-}
-.text-sm {
-  font-size: 0.9rem;
-}
-.italic {
-  font-style: italic;
-}
+/* Component-specific styles only - utility classes now global */
 
 /* Spinner animation */
 .spinner-dot {

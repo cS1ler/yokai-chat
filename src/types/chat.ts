@@ -1,6 +1,6 @@
 export interface Message {
   id: number
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'developer'
   content: string
   timestamp?: Date
   context?: ContextItem[]
@@ -55,7 +55,7 @@ export interface OllamaRequest {
 
 // LM Studio specific types
 export interface LMStudioMessage {
-  role: 'system' | 'user' | 'assistant'
+  role: 'system' | 'user' | 'assistant' | 'developer'
   content: string
 }
 

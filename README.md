@@ -1,41 +1,27 @@
-# Yokai Chat
+## Yokai Chat
 
-A modern, Vue 3-based chat interface for interacting with local AI models via Ollama and LM Studio. Yokai Chat provides a clean, responsive UI with markdown support, context management, and real-time streaming responses.
+Vue 3 + TypeScript chat UI for local AI models. Current branch focuses on LM Studio with an updated UI and testing stack.
 
-## Features
+### Features
 
-- 🤖 **Multi-Platform AI Integration**: Support for both Ollama and LM Studio
-- 📝 **Markdown Support**: Rich text rendering with code syntax highlighting
-- 🔄 **Real-time Streaming**: Live response streaming with typing indicators
-- 📁 **Advanced Context Management**: Save and reuse code snippets, files, and text contexts
-- 🎨 **Modern UI**: Clean, responsive design with neon green theme
-- ⚡ **Fast & Lightweight**: Built with Vue 3, TypeScript, and Vite
-- 🛡️ **Type Safe**: Full TypeScript support with comprehensive type definitions
-- 💬 **Fixed Chat Input**: Always-visible chat input at the bottom of the screen
-- 🔧 **Context Modals**: Centered modal dialogs for context management
+- Multi-backend architecture: LM Studio (active on this branch). Ollama support exists on main.
+- Streaming responses with typing indicator and stop control.
+- Markdown rendering with code blocks.
+- Context management: add, load, and send multiple saved contexts.
+- Fixed bottom input, centered modals, modern responsive UI.
+- Model selector: load/refresh available models, set current model.
+- Error handling during streaming and network issues.
+- Context persistence across sessions.
+- Type-safe codebase with Vue + Pinia + Vite.
+- Testing: Vitest (unit) and Playwright (e2e).
 
-## Prerequisites
+### Requirements
 
-- **Node.js**: Version 20.19.0 or higher (or 22.12.0+)
-- **AI Backend**: Either Ollama or LM Studio installed locally
-- **Modern Browser**: Chrome, Firefox, Safari, or Edge
+- Node.js 20.19.0+ (or 22.12.0+)
+- LM Studio installed and running with a loaded model
+- Modern browser
 
-## Branches
-
-### Main Branch (Ollama)
-
-The main branch supports Ollama integration for local AI conversations.
-
-### LM Studio Branch
-
-The `lm_studio` branch adds support for LM Studio integration with enhanced UI features:
-
-- **Fixed Chat Input**: Chat input stays at the bottom of the screen
-- **Centered Modals**: Context management modals are properly centered
-- **Enhanced Context Management**: Improved context selection and management
-- **Better Error Handling**: Improved race condition handling for streaming responses
-
-To use the LM Studio branch:
+### Quick start
 
 ```bash
 git checkout lm_studio
@@ -43,186 +29,61 @@ npm install
 npm run dev
 ```
 
-## Installation
+App: `http://localhost:5173`
 
-1. **Clone the repository**
+### Backend configuration (LM Studio)
 
-   ```bash
-   git clone <repository-url>
-   cd yokai-chat
-   ```
+- Default proxy: requests to `/api/lmstudio` are proxied to `http://localhost:1234/v1` (see `vite.config.ts`).
+- Change base URL in `src/constants/index.ts` if needed.
 
-2. **Install dependencies**
+### Scripts
 
-   ```bash
-   npm install
-   ```
+- `npm run dev` — start dev server with HMR
+- `npm run build` — production build
+- `npm run preview` — preview build locally
+- `npm run type-check` — TypeScript checks
+- `npm run lint` — ESLint with auto-fix
+- `npm run format` — Prettier format
 
-3. **Configure AI Backend**
+### Testing
 
-   **For Ollama (main branch):**
-   - Update the Ollama base URL in `src/constants/index.ts` if needed
-   - Start Ollama: `ollama serve`
-   - Pull a model: `ollama pull gemma3:4b`
-
-   **For LM Studio (lm_studio branch):**
-   - Install LM Studio from [lmstudio.ai](https://lmstudio.ai)
-   - Start LM Studio and load a model
-   - The app will connect to `http://localhost:1234/v1` by default
-
-## Development
-
-### Start Development Server
+Unit (Vitest + Testing Library):
 
 ```bash
-npm run dev
+npm run test          # run once
+npm run test:watch    # watch mode
+npm run test:coverage # coverage report
 ```
 
-The application will be available at `http://localhost:5173`
+End-to-end (Playwright):
 
-### Available Scripts
+```bash
+npx playwright install --with-deps  # one-time; may require sudo
+npm run dev                         # in one terminal
+npm run e2e                         # in another terminal
+```
 
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build locally
-- `npm run type-check` - Run TypeScript type checking
-- `npm run lint` - Run ESLint with auto-fix
-- `npm run format` - Format code with Prettier
+If sudo is unavailable, install a single browser: `npx playwright install chromium`.
 
-## Usage
-
-### Basic Chat
-
-1. Open the application in your browser
-2. Type your message in the fixed input field at the bottom
-3. Press Enter or click Send to get a response
-4. Use the "Test" button to verify your AI backend connection
-
-### Context Management (LM Studio Branch)
-
-1. **Add Context**: Click the ⚙️ button to enable advanced mode, then use 📎 to add contexts
-2. **Load Saved Contexts**: Click "📚 Load Saved" to select from previously saved contexts
-3. **Context Types**: Support for code snippets, files, and text contexts
-4. **File Upload**: Drag and drop files or click "📁 Upload File" to add file contexts
-5. **Context Selection**: Select multiple contexts before sending messages
-
-### Features Overview
-
-- **Streaming Responses**: Watch responses appear in real-time with improved race condition handling
-- **Stop Generation**: Click the stop button to halt ongoing responses
-- **Markdown Rendering**: Supports code blocks, lists, links, and formatting
-- **Model Selection**: Switch between different AI models (Ollama or LM Studio)
-- **Fixed Input**: Chat input always stays at the bottom of the screen
-- **Centered Modals**: Context management modals are properly centered
-- **Error Handling**: Clear error messages for connection issues
-- **Context Persistence**: Save and reuse contexts across sessions
-
-## Configuration
-
-### Ollama Setup (Main Branch)
-
-The application connects to Ollama at `http://localhost:11434` by default. To change this:
-
-1. Edit `src/constants/index.ts`
-2. Update the `OLLAMA_BASE_URL` value
-3. Restart the development server
-
-### LM Studio Setup (LM Studio Branch)
-
-The application connects to LM Studio at `http://localhost:1234/v1` by default. To change this:
-
-1. Edit `src/constants/index.ts`
-2. Update the `LMSTUDIO_BASE_URL` value
-3. Restart the development server
-
-### Model Configuration
-
-**Ollama**: Default model is set to `gemma3:4b`. To change:
-
-1. Edit `src/constants/index.ts`
-2. Update the `DEFAULT_MODEL` value
-3. Ensure the model is available in your Ollama installation
-
-**LM Studio**: Models are managed through the LM Studio interface. The app will automatically detect available models.
-
-### UI Customization
-
-Modify `src/assets/theme.css` to customize colors, spacing, and styling.
-
-## Troubleshooting
-
-### Connection Issues
-
-**Ollama:**
-
-- **"Could not reach Ollama"**: Ensure Ollama is running (`ollama serve`)
-- **"No models available"**: Pull a model (`ollama pull <model-name>`)
-- **Network errors**: Check firewall settings and Ollama URL configuration
-
-**LM Studio:**
-
-- **"Could not reach LM Studio"**: Ensure LM Studio is running and a model is loaded
-- **"No models available"**: Load a model in LM Studio interface
-- **Connection errors**: Check that LM Studio is running on port 1234
-
-### Performance Issues
-
-- **Slow responses**: Try a smaller model or increase system resources
-- **Memory issues**: Reduce `MAX_MESSAGES_PER_SESSION` in constants
-- **Large files**: Check `MAX_FILE_SIZE` limit in configuration
-
-### Development Issues
-
-- **Type errors**: Run `npm run type-check` to identify issues
-- **Linting errors**: Run `npm run lint` to fix code style issues
-- **Build failures**: Check Node.js version compatibility
-
-## Project Structure
+### Project structure
 
 ```
 src/
-├── components/          # Vue components
-│   ├── ContextForm.vue     # Context creation form
-│   ├── ContextItem.vue     # Individual context display
-│   ├── ContextManager.vue  # Context management interface
-│   ├── MessageInput.vue    # Chat input component
-│   ├── MessageList.vue     # Message display component
-│   └── TypingIndicator.vue # Typing animation
-├── composables/         # Vue composables
-│   ├── useMarkdown.ts      # Markdown rendering utilities
-│   └── useTypingIndicator.ts # Typing state management
-├── constants/          # Application constants
-├── services/           # External service integrations
-│   ├── ollama.ts          # Ollama API service
-│   └── lmstudio.ts        # LM Studio API service
-├── stores/            # Pinia state management
-│   └── chat.ts           # Chat state store
-├── types/             # TypeScript type definitions
-│   └── chat.ts           # Chat-related types
-└── views/             # Page components
-    └── ChatView.vue      # Main chat interface
+  components/      # UI components (MessageInput, MessageList, ModelSelector, TypingIndicator, Context*)
+  composables/     # Composition utilities (loading, forms, markdown, modal)
+  constants/       # App constants
+  services/        # Backends (lmstudio.ts)
+  stores/          # Pinia store (chat.ts)
+  types/           # Type definitions
+  views/           # Pages (ChatView, LandingPage, ModelDownloadView)
 ```
 
-## Contributing
+### Troubleshooting
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- LM Studio connection: ensure it runs on port 1234 with a loaded model.
+- CORS/Proxy issues: see `vite.config.ts` and `CORS_TROUBLESHOOTING.md`.
+- Playwright errors about missing browsers: run the install step above.
 
-## License
+### License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Recommended IDE Setup
-
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
+MIT. See `LICENSE`.

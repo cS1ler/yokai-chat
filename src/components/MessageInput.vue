@@ -2,16 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import type { ContextItem } from '@/types/chat'
 import { useChatStore } from '@/stores/chat'
-import ContextForm from './ContextForm.vue'
 import ContextItemComponent from './ContextItem.vue'
-import ContextManager from './ContextManager.vue'
 
 const chatStore = useChatStore()
 const message = ref('')
 const isAdvancedMode = ref(false)
 const contextItems = ref<ContextItem[]>([])
-const contextFormRef = ref<InstanceType<typeof ContextForm>>()
-const contextManagerRef = ref<InstanceType<typeof ContextManager>>()
 
 defineProps<{
   isStreaming?: boolean
@@ -21,6 +17,7 @@ const emit = defineEmits<{
   (e: 'send', content: string, context?: ContextItem[]): void
   (e: 'stop'): void
   (e: 'open-context-manager'): void
+  (e: 'open-context-form'): void
 }>()
 
 // Load saved contexts on mount
@@ -58,15 +55,12 @@ function removeContextItem(id: string) {
 }
 
 function showAddContextForm() {
-  contextFormRef.value?.openForm()
+  console.log('showAddContextForm called')
+  emit('open-context-form')
 }
 
 function handleStop() {
   emit('stop')
-}
-
-function saveContextToStore(context: ContextItem) {
-  chatStore.saveContext(context)
 }
 
 function openContextManager() {
@@ -77,12 +71,9 @@ function handleContextSelection(selectedContexts: ContextItem[]) {
   contextItems.value = selectedContexts
 }
 
-function setContextItems(selectedContexts: ContextItem[]) {
-  contextItems.value = selectedContexts
-}
-
 defineExpose({
-  setContextItems,
+  setContextItems: handleContextSelection,
+  addContextItem,
 })
 </script>
 
@@ -98,13 +89,7 @@ defineExpose({
       />
     </div>
 
-    <!-- Add Context Form -->
-    <ContextForm
-      ref="contextFormRef"
-      @add="addContextItem"
-      @save="saveContextToStore"
-      @cancel="() => {}"
-    />
+    <!-- Add Context Form is now handled by ChatView -->
 
     <!-- Context Manager Modal is now handled by ChatView -->
 
@@ -175,38 +160,5 @@ defineExpose({
 </template>
 
 <style scoped>
-/* Utility classes */
-.flex {
-  display: flex;
-}
-.flex-col {
-  flex-direction: column;
-}
-.gap-xs {
-  gap: var(--space-xs);
-}
-.gap-sm {
-  gap: var(--space-sm);
-}
-.gap-md {
-  gap: var(--space-md);
-}
-.p-lg {
-  padding: var(--space-lg);
-}
-.border-t {
-  border-top: 1px solid var(--color-border);
-}
-.border-border {
-  border-color: var(--color-border);
-}
-.bg-primary {
-  background: var(--bg-primary);
-}
-.flex-1 {
-  flex: 1;
-}
-.opacity-50 {
-  opacity: 0.5;
-}
+/* Component-specific styles only - utility classes now global */
 </style>

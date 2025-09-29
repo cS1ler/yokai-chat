@@ -2,12 +2,9 @@ export const APP_CONFIG = {
   NAME: 'Yokai Chat',
   DEFAULT_MODEL: 'llama-3.2-3b-instruct',
   LMSTUDIO_BASE_URL: '/api/lmstudio',
-  OLLAMA_BASE_URL: 'http://10.0.0.210:11434', // Keep for reference
   API_ENDPOINTS: {
     CHAT_COMPLETIONS: '/chat/completions',
     MODELS: '/models',
-    GENERATE: '/api/generate', // Keep for reference
-    TAGS: '/api/tags', // Keep for reference
   },
   MESSAGE_LIMITS: {
     MAX_CONTEXT_PREVIEW: 100,
@@ -68,7 +65,6 @@ Try sending me a message with markdown formatting!`
 
 export const ERROR_MESSAGES = {
   LMSTUDIO_CONNECTION: '⚠️ Error connecting to LM Studio',
-  OLLAMA_CONNECTION: '⚠️ Error connecting to Ollama', // Keep for reference
   INVALID_INPUT: 'Please enter a valid message',
   CONTEXT_REQUIRED: 'Context title and content are required',
   NETWORK_ERROR: 'Network error occurred',

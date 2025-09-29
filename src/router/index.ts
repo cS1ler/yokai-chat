@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import LandingPage from '../views/LandingPage.vue'
 import ChatView from '../views/ChatView.vue'
 import ModelDownloadView from '../views/ModelDownloadView.vue'
 
@@ -7,6 +8,11 @@ const router = createRouter({
   routes: [
     {
       path: '/',
+      name: 'landing',
+      component: LandingPage,
+    },
+    {
+      path: '/chat',
       name: 'chat',
       component: ChatView,
     },

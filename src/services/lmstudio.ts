@@ -15,16 +15,32 @@ export class LMStudioService {
     onChunk: (chunk: string) => void,
     onError?: (error: string) => void,
     abortController?: AbortController,
+    chatHistory?: Array<{ role: 'user' | 'assistant' | 'system' | 'developer'; content: string }>,
   ): Promise<void> {
     try {
+      // Build messages array with chat history
+      const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = []
+
+      // Add chat history if provided
+      if (chatHistory && chatHistory.length > 0) {
+        messages.push(
+          ...chatHistory.map((msg) => ({
+            role:
+              msg.role === 'developer' ? 'system' : (msg.role as 'user' | 'assistant' | 'system'),
+            content: msg.content,
+          })),
+        )
+      }
+
+      // Add current user message
+      messages.push({
+        role: 'user',
+        content: message,
+      })
+
       const request: LMStudioRequest = {
         model,
-        messages: [
-          {
-            role: 'user',
-            content: message,
-          },
-        ],
+        messages,
         stream: true,
         temperature: 0.7,
         max_tokens: 2048,
@@ -223,6 +239,14 @@ export const lmStudioService = new LMStudioService(APP_CONFIG.LMSTUDIO_BASE_URL)
 export async function sendMessageStream(
   message: string,
   onChunk: (chunk: string) => void,
+  chatHistory?: Array<{ role: 'user' | 'assistant' | 'system' | 'developer'; content: string }>,
 ): Promise<void> {
-  return lmStudioService.sendMessageStream(message, APP_CONFIG.DEFAULT_MODEL, onChunk)
+  return lmStudioService.sendMessageStream(
+    message,
+    APP_CONFIG.DEFAULT_MODEL,
+    onChunk,
+    undefined,
+    undefined,
+    chatHistory,
+  )
 }
