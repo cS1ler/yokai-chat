@@ -20,5 +20,10 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
     },
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
+    },
   },
 })

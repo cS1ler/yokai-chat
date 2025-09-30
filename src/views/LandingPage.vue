@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import { useLoading } from '@/composables/useLoading'
@@ -99,11 +99,25 @@ function scrollToModels() {
   }
 }
 
-function selectModel(model: string) {
+async function selectModel(model: string) {
   const baseUrl = buildBaseUrlFromInput()
+  console.log('selectModel - baseUrl:', baseUrl)
   chatStore.setLMStudioBaseUrl(baseUrl)
   chatStore.setCurrentModel(model)
-  router.push('/chat')
+
+  // Wait for next tick to ensure reactivity updates are complete
+  await nextTick()
+
+  // Verify the model was set correctly
+  console.log('Selected model:', model)
+  console.log('Current model in store:', chatStore.currentModel)
+  console.log(
+    'Base URL in store:',
+    (chatStore as unknown as { lmStudioBaseUrl?: string }).lmStudioBaseUrl,
+  )
+
+  // Navigate to chat page
+  await router.push('/chat')
 }
 
 async function proceedToChat() {
@@ -192,9 +206,10 @@ function retryConnection() {
     <section id="model-selection" class="model-selection-section">
       <div class="container">
         <div class="section-header">
-          <h2 class="section-title">Select Your AI Model</h2>
+          <h2 class="section-title">Connect to Your AI Model</h2>
           <p class="section-subtitle">
-            Choose from available models to start your conversation with Yokai Chat
+            Enter your LM Studio server details and select a model to begin your mystical
+            conversation with Yokai Chat
           </p>
         </div>
 
@@ -221,14 +236,18 @@ function retryConnection() {
           <div v-else-if="hasAttempted && !isConnected" class="status-card error">
             <div class="status-icon">⚠️</div>
             <div class="status-content">
-              <h3>LM Studio Not Connected</h3>
+              <h3>Connection Failed</h3>
               <p>{{ connectionError }}</p>
+              <p class="help-text">
+                Make sure LM Studio is running and the server is accessible at the specified
+                address.
+              </p>
               <BaseButton
                 variant="primary"
                 @click="retryConnection"
                 :loading="isCheckingConnection"
               >
-                Retry Connection
+                Try Again
               </BaseButton>
             </div>
           </div>
@@ -236,8 +255,11 @@ function retryConnection() {
           <div v-else-if="isConnected" class="status-card success">
             <div class="status-icon">✅</div>
             <div class="status-content">
-              <h3>LM Studio Connected</h3>
-              <p>Ready to select your model</p>
+              <h3>Connection Successful!</h3>
+              <p>
+                Your LM Studio server is ready. Choose a model below to begin your mystical chat
+                experience.
+              </p>
             </div>
           </div>
         </div>
@@ -246,29 +268,32 @@ function retryConnection() {
         <div v-if="isConnected" class="model-grid">
           <div v-if="isLoadingModels" class="loading-models">
             <LoadingSpinner size="md" />
-            <span>Loading available models...</span>
+            <span>Discovering available AI models...</span>
           </div>
 
           <div v-else-if="availableModels.length === 0" class="no-models">
             <div class="no-models-icon">📦</div>
-            <h3>No Models Available</h3>
-            <p>No models are currently loaded in LM Studio. Please load a model first.</p>
+            <h3>No AI Models Found</h3>
+            <p>
+              No models are currently loaded in your LM Studio server. Load a model to begin your
+              mystical conversation.
+            </p>
             <BaseButton variant="secondary" @click="loadModels" :loading="isLoadingModels">
-              Refresh Models
+              🔄 Refresh Models
             </BaseButton>
             <BaseButton variant="primary" @click="showLoadHelp = true">
-              How to load a model
+              📖 How to Load a Model
             </BaseButton>
           </div>
 
           <div v-else-if="showModelPrompt" class="model-prompt">
             <div class="prompt-icon">🤖</div>
-            <h3>Connection established!</h3>
+            <h3>Model Selection Complete!</h3>
             <p>
-              Please load <strong>{{ selectedModel }}</strong> in LM Studio, then click the button
-              below.
+              Please load <strong>{{ selectedModel }}</strong> in your LM Studio application, then
+              click below to begin your mystical chat.
             </p>
-            <BaseButton variant="primary" @click="proceedToChat"> I loaded the model </BaseButton>
+            <BaseButton variant="primary" @click="proceedToChat">✨ Start Mystical Chat</BaseButton>
           </div>
 
           <div v-else class="models-list">
@@ -281,7 +306,7 @@ function retryConnection() {
               <div class="model-icon">🤖</div>
               <div class="model-info">
                 <h3 class="model-name">{{ model }}</h3>
-                <p class="model-description">Ready to chat</p>
+                <p class="model-description">Ready for mystical conversation</p>
               </div>
               <div class="model-arrow">→</div>
             </div>
@@ -293,21 +318,35 @@ function retryConnection() {
     <BaseModal
       :isOpen="showLoadHelp"
       @close="showLoadHelp = false"
-      title="Load a model in LM Studio"
+      title="How to Load a Model in LM Studio"
     >
       <template #default>
         <div class="help-content">
+          <h4>Follow these steps to load your AI model:</h4>
           <ol>
-            <li>Open the LM Studio application on your machine.</li>
-            <li>Go to the Models section and download a model if needed.</li>
-            <li>Click "Start" or "Load" to run the selected model.</li>
-            <li>Ensure the server is running at the host:port you entered above.</li>
+            <li>
+              <strong>Launch LM Studio</strong> - Open the LM Studio application on your computer
+            </li>
+            <li>
+              <strong>Download a Model</strong> - Go to the Models section and download a model if
+              you haven't already
+            </li>
+            <li>
+              <strong>Start the Server</strong> - Click "Start" or "Load" to run the selected model
+            </li>
+            <li>
+              <strong>Verify Connection</strong> - Ensure the server is running at the host:port you
+              entered above
+            </li>
           </ol>
-          <p>Once a model is loaded, click "Refresh Models" to continue.</p>
+          <p>
+            <strong>Next:</strong> Once your model is loaded, click "🔄 Refresh Models" to see it in
+            the list below.
+          </p>
         </div>
       </template>
       <template #footer>
-        <BaseButton variant="primary" @click="showLoadHelp = false">Got it</BaseButton>
+        <BaseButton variant="primary" @click="showLoadHelp = false">✨ Got it!</BaseButton>
       </template>
     </BaseModal>
   </div>
@@ -622,9 +661,28 @@ function retryConnection() {
   margin-bottom: var(--space-2);
 }
 
+.help-content h4 {
+  color: var(--color-accent);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
 .help-content ol {
   padding-left: var(--space-6);
   line-height: var(--leading-relaxed);
+}
+
+.help-content p {
+  margin-top: var(--space-4);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.help-text {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-2);
 }
 
 .models-list {

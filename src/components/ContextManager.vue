@@ -10,6 +10,10 @@ import { truncateText } from '@/utils/string'
 const chatStore = useChatStore()
 const { isOpen: showManager, open: openManager, close: closeManager } = useModal()
 
+// Debug logging
+console.log('ContextManager - savedContexts:', chatStore.savedContexts)
+console.log('ContextManager - savedContexts length:', chatStore.savedContexts.length)
+
 const emit = defineEmits<{
   close: []
   select: [contexts: ContextItem[]]
@@ -46,8 +50,15 @@ const handleClose = () => {
   emit('close')
 }
 
+const openManagerWithDebug = () => {
+  console.log('Opening context manager...')
+  console.log('Current savedContexts:', chatStore.savedContexts)
+  console.log('Current savedContexts length:', chatStore.savedContexts.length)
+  openManager()
+}
+
 defineExpose({
-  openManager,
+  openManager: openManagerWithDebug,
 })
 </script>
 

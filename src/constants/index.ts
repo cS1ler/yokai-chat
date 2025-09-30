@@ -1,7 +1,7 @@
 export const APP_CONFIG = {
   NAME: 'Yokai Chat',
-  DEFAULT_MODEL: 'llama-3.2-3b-instruct',
   // LMSTUDIO_BASE_URL is now dynamic and set by user input
+  // Model selection is now dynamic and set by user on landing page
   API_ENDPOINTS: {
     CHAT_COMPLETIONS: '/chat/completions',
     MODELS: '/models',

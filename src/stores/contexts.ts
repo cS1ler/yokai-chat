@@ -11,19 +11,23 @@ export const useContextsStore = defineStore('contexts', () => {
 
   // Actions
   const saveContext = (context: ContextItem) => {
+    console.log('saveContext called with:', context)
     const existingIndex = savedContexts.value.findIndex((c) => c.id === context.id)
     let newContexts: ContextItem[]
 
     if (existingIndex >= 0) {
       newContexts = [...savedContexts.value]
       newContexts[existingIndex] = context
+      console.log('Updating existing context at index:', existingIndex)
     } else {
       newContexts = [...savedContexts.value, context]
+      console.log('Adding new context. Total contexts now:', newContexts.length)
     }
 
     savedContexts.value = newContexts
     triggerRef(savedContexts)
     saveContextsToStorage()
+    console.log('Context saved successfully. savedContexts.value:', savedContexts.value)
   }
 
   const deleteContext = (id: string) => {
@@ -102,7 +106,9 @@ export const useContextsStore = defineStore('contexts', () => {
   // Persistence
   const saveContextsToStorage = () => {
     try {
+      console.log('Saving contexts to storage:', savedContexts.value)
       StatePersistence.saveContexts(savedContexts.value)
+      console.log('Contexts saved to localStorage successfully')
     } catch (error) {
       console.warn('Failed to save contexts to localStorage:', error)
     }
@@ -111,11 +117,13 @@ export const useContextsStore = defineStore('contexts', () => {
   const loadContextsFromStorage = () => {
     try {
       const storedContexts = StatePersistence.loadContexts()
-      if (storedContexts.length > 0) {
-        savedContexts.value = storedContexts
-      }
+      savedContexts.value = storedContexts
+      triggerRef(savedContexts)
+      console.log('Loaded contexts from storage:', storedContexts.length, 'contexts')
     } catch (error) {
       console.warn('Failed to load contexts from localStorage:', error)
+      savedContexts.value = []
+      triggerRef(savedContexts)
     }
   }
 

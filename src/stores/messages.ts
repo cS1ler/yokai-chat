@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
-import { ref, computed, shallowRef, triggerRef } from 'vue'
+import { ref, computed } from 'vue'
 import type { Message } from '@/types/chat'
 import { DEFAULT_WELCOME_MESSAGE, APP_CONFIG } from '@/constants'
 import { StatePersistence } from '@/utils/persistence'
 
 export const useMessagesStore = defineStore('messages', () => {
-  // State - Use shallowRef for better performance with large arrays
-  const messages = shallowRef<Message[]>([
+  // State - Use regular ref for better reactivity
+  const messages = ref<Message[]>([
     {
       id: 1,
       role: 'assistant',
@@ -43,24 +43,39 @@ export const useMessagesStore = defineStore('messages', () => {
       messages.value = newMessages
     }
 
-    // Trigger reactivity manually for shallowRef
-    triggerRef(messages)
-
     // Persist to storage
     saveMessagesToStorage()
   }
 
   const updateMessage = (id: number, updates: Partial<Message>) => {
+    console.log('updateMessage called with id:', id, 'updates:', updates)
+    console.log(
+      'Current messages:',
+      messages.value.map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content.substring(0, 50) + '...',
+      })),
+    )
+
     const messageIndex = messages.value.findIndex((m) => m.id === id)
+    console.log('Message index found:', messageIndex)
+
     if (messageIndex !== -1) {
       // Create a new array with updated message
       const newMessages = [...messages.value]
+      const oldMessage = newMessages[messageIndex]
       newMessages[messageIndex] = { ...newMessages[messageIndex], ...updates }
-      messages.value = newMessages
 
-      // Trigger reactivity manually for shallowRef
-      triggerRef(messages)
+      console.log('Old message content:', oldMessage.content)
+      console.log('New message content:', newMessages[messageIndex].content)
+
+      messages.value = newMessages
       saveMessagesToStorage()
+
+      console.log('Message updated successfully')
+    } else {
+      console.log('Message not found with id:', id)
     }
   }
 
@@ -69,9 +84,6 @@ export const useMessagesStore = defineStore('messages', () => {
     if (index > -1) {
       const newMessages = messages.value.filter((_, i) => i !== index)
       messages.value = newMessages
-
-      // Trigger reactivity manually for shallowRef
-      triggerRef(messages)
       saveMessagesToStorage()
     }
   }
@@ -86,8 +98,6 @@ export const useMessagesStore = defineStore('messages', () => {
       },
     ]
 
-    // Trigger reactivity manually for shallowRef
-    triggerRef(messages)
     saveMessagesToStorage()
   }
 
@@ -139,7 +149,9 @@ export const useMessagesStore = defineStore('messages', () => {
       content: '',
       timestamp: new Date(),
     }
+    console.log('createAssistantMessage - created message with id:', message.id)
     addMessage(message)
+    console.log('createAssistantMessage - message added to store')
     return message
   }
 

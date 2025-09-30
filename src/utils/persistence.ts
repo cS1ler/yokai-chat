@@ -52,8 +52,10 @@ export class StatePersistence {
   // Contexts
   static saveContexts(contexts: ContextItem[]): void {
     try {
+      console.log('StatePersistence.saveContexts called with:', contexts.length, 'contexts')
       const serialized = JSON.stringify(contexts)
       localStorage.setItem(STORAGE_KEYS.CONTEXTS, serialized)
+      console.log('Contexts serialized and saved to localStorage with key:', STORAGE_KEYS.CONTEXTS)
     } catch (error) {
       console.warn('Failed to save contexts to localStorage:', error)
       throw new ValidationError('Failed to save contexts', 'contexts')
@@ -62,8 +64,13 @@ export class StatePersistence {
 
   static loadContexts(): ContextItem[] {
     try {
+      console.log('StatePersistence.loadContexts called, checking localStorage for key:', STORAGE_KEYS.CONTEXTS)
       const stored = localStorage.getItem(STORAGE_KEYS.CONTEXTS)
-      if (!stored) return []
+      console.log('Raw stored data:', stored)
+      if (!stored) {
+        console.log('No stored contexts found')
+        return []
+      }
 
       const parsed = safeParseContexts(stored)
       if (!parsed) {
@@ -72,6 +79,7 @@ export class StatePersistence {
         return []
       }
 
+      console.log('Successfully loaded', parsed.length, 'contexts from localStorage')
       return parsed
     } catch (error) {
       console.warn('Failed to load contexts from localStorage:', error)

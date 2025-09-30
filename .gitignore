@@ -146,6 +146,14 @@ vite.config.ts.timestamp-*
 /cypress/videos/
 /cypress/screenshots/
 
+# Testing files and directories
+test-results/
+playwright-report/
+test-results.json
+coverage/
+*.spec.ts.snap
+*.test.ts.snap
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

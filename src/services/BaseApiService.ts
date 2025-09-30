@@ -190,6 +190,7 @@ export abstract class BaseApiService implements ApiService {
               }
 
               if (parsed.choices?.[0]?.delta?.content) {
+                console.log('Streaming chunk:', parsed.choices[0].delta.content)
                 handler.onChunk(parsed.choices[0].delta.content)
               }
             }

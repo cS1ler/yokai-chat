@@ -16,7 +16,7 @@ export class LMStudioService extends BaseApiService {
 
   async sendMessageStream(
     message: string,
-    model: string = APP_CONFIG.DEFAULT_MODEL,
+    model: string,
     onChunk: (chunk: string) => void,
     onError?: (error: string) => void,
     abortController?: AbortController,
@@ -51,11 +51,20 @@ export class LMStudioService extends BaseApiService {
         max_tokens: 2048,
       }
 
+      console.log('LMStudio service - sending request:', {
+        model,
+        messageCount: messages.length,
+        stream: true,
+      })
+
       const response = await this.makeRequest(
         APP_CONFIG.API_ENDPOINTS.CHAT_COMPLETIONS,
         request,
         abortController,
       )
+
+      console.log('LMStudio service - response status:', response.status)
+      console.log('LMStudio service - response ok:', response.ok)
 
       if (!response.ok) {
         this.handleHttpError(response)
@@ -64,6 +73,8 @@ export class LMStudioService extends BaseApiService {
       if (!response.body) {
         throw new Error('Response body is null')
       }
+
+      console.log('LMStudio service - starting stream processing')
 
       await this.processStream(
         response.body,

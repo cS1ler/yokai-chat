@@ -20,10 +20,23 @@ export const useChatStore = defineStore('chat', () => {
     error: messagesStore.error,
   }))
 
+  // Force synchronization of current model
+  const syncCurrentModel = () => {
+    console.log('syncCurrentModel called')
+    console.log('Models store currentModel:', modelsStore.currentModel)
+    console.log('Chat store currentModel before sync:', modelsStore.currentModel)
+
+    // Force a reload from storage
+    modelsStore.loadCurrentModelFromStorage()
+
+    console.log('Chat store currentModel after sync:', modelsStore.currentModel)
+    return modelsStore.currentModel
+  }
+
   // Re-export all store methods for convenience
   return {
-    // Messages
-    messages: messagesStore.messages,
+    // Messages - use computed to ensure reactivity
+    messages: computed(() => messagesStore.messages),
     isTyping: messagesStore.isTyping,
     isStreaming: messagesStore.isStreaming,
     error: messagesStore.error,
@@ -44,10 +57,16 @@ export const useChatStore = defineStore('chat', () => {
     createUserMessage: messagesStore.createUserMessage,
     createAssistantMessage: messagesStore.createAssistantMessage,
 
-    // Contexts
-    savedContexts: contextsStore.savedContexts,
-    selectedContextIds: contextsStore.selectedContextIds,
-    activeContextIds: contextsStore.activeContextIds,
+    // Contexts - use computed to ensure reactivity
+    savedContexts: computed(() => {
+      console.log(
+        'Chat store savedContexts computed called, contexts store value:',
+        contextsStore.savedContexts,
+      )
+      return contextsStore.savedContexts
+    }),
+    selectedContextIds: computed(() => contextsStore.selectedContextIds),
+    activeContextIds: computed(() => contextsStore.activeContextIds),
     saveContext: contextsStore.saveContext,
     deleteContext: contextsStore.deleteContext,
     toggleContextSelection: contextsStore.toggleContextSelection,
@@ -60,16 +79,30 @@ export const useChatStore = defineStore('chat', () => {
     loadActiveContextsFromStorage: contextsStore.loadActiveContextsFromStorage,
     loadContextsFromStorage: contextsStore.loadContextsFromStorage,
 
-    // Models
-    currentModel: modelsStore.currentModel,
+    // Models - use computed to ensure reactivity
+    currentModel: computed(() => {
+      console.log(
+        'Chat store currentModel computed called, models store value:',
+        modelsStore.currentModel,
+      )
+      return modelsStore.currentModel
+    }),
     availableModels: modelsStore.availableModels,
     isLoadingModels: modelsStore.isLoadingModels,
-    lmStudioBaseUrl: modelsStore.lmStudioBaseUrl,
+    lmStudioBaseUrl: computed(() => {
+      console.log(
+        'Chat store lmStudioBaseUrl computed called, models store value:',
+        modelsStore.lmStudioBaseUrl,
+      )
+      return modelsStore.lmStudioBaseUrl
+    }),
     setCurrentModel: modelsStore.setCurrentModel,
     loadCurrentModelFromStorage: modelsStore.loadCurrentModelFromStorage,
     loadAvailableModels: modelsStore.loadAvailableModels,
     setLMStudioBaseUrl: modelsStore.setLMStudioBaseUrl,
     loadLMStudioBaseUrlFromStorage: modelsStore.loadLMStudioBaseUrlFromStorage,
+    refreshCurrentModel: modelsStore.refreshCurrentModel,
+    syncCurrentModel,
 
     // Combined state
     chatState,
