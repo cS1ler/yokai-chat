@@ -153,6 +153,22 @@ test-results.json
 coverage/
 *.spec.ts.snap
 *.test.ts.snap
+test/
+tests-e2e/
+*.spec.ts
+*.test.ts
+playwright.config.ts
+vitest.setup.ts
+
+# Development and documentation files
+*.md
+!README.md
+.editorconfig
+.gitattributes
+.prettierrc.json
+eslint.config.ts
+tsconfig.*.json
+vite.config.ts
 
 # Editor directories and files
 .vscode/*
